@@ -1,0 +1,40 @@
+{
+  "name": "shared-bike-mapping",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "data:fetch:bikepoint": "node scripts/fetch/fetch_bikepoint.mjs",
+    "data:build:stations": "node scripts/clean/build_stations_dataset.mjs",
+    "data:build:boroughs": "node scripts/clean/build_london_borough_basemap.mjs",
+    "data:stations": "node scripts/aggregate/run_station_pipeline.mjs",
+    "data:fetch:trip-year": "node scripts/fetch/fetch_trip_year_2025.mjs",
+    "data:build:trip-annual": "node scripts/clean/build_trip_annual_aggregates.mjs",
+    "data:trips:annual": "node scripts/aggregate/run_trip_year_pipeline.mjs",
+    "data:build:story": "node scripts/clean/build_storytelling_dataset.mjs",
+    "data:build:hourly": "node scripts/clean/build_hourly_flows.mjs"
+  },
+  "dependencies": {
+    "@deck.gl/aggregation-layers": "^9.2.11",
+    "@deck.gl/core": "^9.2.11",
+    "@deck.gl/geo-layers": "^9.2.11",
+    "@deck.gl/layers": "^9.2.11",
+    "@deck.gl/mapbox": "^9.2.11",
+    "csv-parse": "^6.1.0",
+    "maplibre-gl": "^5.20.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0"
+  }
+}
