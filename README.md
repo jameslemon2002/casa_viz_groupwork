@@ -57,6 +57,25 @@ npm run dev -- --host 127.0.0.1 --port 4182
 npm run build
 ```
 
+## GitHub Pages Deployment
+
+This repo now includes a GitHub Pages workflow:
+
+- [.github/workflows/deploy-pages.yml](/Users/lemon/Desktop/viz_group_project/.github/workflows/deploy-pages.yml)
+
+What to do:
+
+1. Push the project to GitHub.
+2. Push either `main` or `codex/github-clean-v3`.
+3. In the GitHub repository settings, set **Pages** to use **GitHub Actions**.
+4. After the workflow finishes, GitHub will give you a public Pages URL.
+
+If you want the cleanest upload history, push:
+
+- `codex/github-clean-v3`
+
+That branch was created specifically for GitHub delivery without the earlier raw-data history.
+
 ## Data Rebuild
 
 If you want to rebuild the current story datasets:
