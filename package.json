@@ -20,6 +20,7 @@
     "data:build:hourly": "node scripts/clean/build_hourly_flows.mjs",
     "data:build:temporal": "node scripts/clean/build_temporal_summary.mjs",
     "data:build:route-flows": "node scripts/clean/build_route_flows.mjs",
+    "data:optimize:route-flows": "node scripts/clean/optimize_route_flow_slices.mjs",
     "data:build:regimes": "node scripts/clean/build_regime_summary.mjs"
   },
   "dependencies": {

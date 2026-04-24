@@ -289,19 +289,23 @@ function routeStrength(edge: RouteFlowEdge, routeMax: number) {
   return Math.sqrt(clamp01(edge.averageDailyTrips / routeMax));
 }
 
+function routeVisualStrength(edge: RouteFlowEdge, routeMax: number) {
+  return edge.strength ?? routeStrength(edge, routeMax);
+}
+
 function editorialRouteColor(edge: RouteFlowEdge, routeMax: number, _colorScheme: ColorScheme): RGBA {
-  const strength = routeStrength(edge, routeMax);
+  const strength = routeVisualStrength(edge, routeMax);
   const palette = unifiedRoutePalette;
   return rgba(mixRgb(palette.route, palette.routeLight, 0.18 + strength * 0.68), 112 + Math.round(strength * 80));
 }
 
 function editorialRouteHalo(edge: RouteFlowEdge, routeMax: number): RGBA {
-  const strength = routeStrength(edge, routeMax);
+  const strength = routeVisualStrength(edge, routeMax);
   return [235, 248, 255, 44 + Math.round(strength * 68)] as RGBA;
 }
 
 function editorialRouteContext(edge: RouteFlowEdge, routeMax: number): RGBA {
-  const strength = routeStrength(edge, routeMax);
+  const strength = routeVisualStrength(edge, routeMax);
   return [118, 145, 178, 18 + Math.round(strength * 28)] as RGBA;
 }
 
@@ -394,27 +398,42 @@ export function OdFlowMapCanvas({
   );
   const sortedFlows = useMemo(() => [...flows].sort((a, b) => a.count - b.count), [flows]);
   const sortedCompareFlows = useMemo(() => [...compareFlows].sort((a, b) => a.count - b.count), [compareFlows]);
-  const sortedRouteEdges = useMemo(() => [...routeEdges].sort((a, b) => a.averageDailyTrips - b.averageDailyTrips), [routeEdges]);
-  const sortedRouteValues = useMemo(() => sortedRouteEdges.map((edge) => edge.averageDailyTrips), [sortedRouteEdges]);
+  const routeEdgesHaveVisualTiers = useMemo(() => routeEdges.some((edge) => edge.visualTier), [routeEdges]);
+  const sortedRouteEdges = useMemo(
+    () => routeEdgesHaveVisualTiers ? routeEdges : [...routeEdges].sort((a, b) => a.averageDailyTrips - b.averageDailyTrips),
+    [routeEdges, routeEdgesHaveVisualTiers],
+  );
+  const sortedRouteValues = useMemo(
+    () => routeEdgesHaveVisualTiers ? [] : sortedRouteEdges.map((edge) => edge.averageDailyTrips),
+    [routeEdgesHaveVisualTiers, sortedRouteEdges],
+  );
   const routeContextCutoff = useMemo(() => Math.max(quantileOfSorted(sortedRouteValues, 0.5), 0.05), [sortedRouteValues]);
   const routeSupportCutoff = useMemo(() => Math.max(quantileOfSorted(sortedRouteValues, 0.74), 0.1), [sortedRouteValues]);
   const routeFocusCutoff = useMemo(() => Math.max(quantileOfSorted(sortedRouteValues, 0.88), 0.16), [sortedRouteValues]);
   const routeAccentCutoff = useMemo(() => Math.max(quantileOfSorted(sortedRouteValues, 0.96), 0.28), [sortedRouteValues]);
   const contextRouteEdges = useMemo(
-    () => sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeContextCutoff),
-    [routeContextCutoff, sortedRouteEdges],
+    () => routeEdgesHaveVisualTiers
+      ? routeEdges
+      : sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeContextCutoff),
+    [routeContextCutoff, routeEdges, routeEdgesHaveVisualTiers, sortedRouteEdges],
   );
   const supportRouteEdges = useMemo(
-    () => sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeSupportCutoff),
-    [routeSupportCutoff, sortedRouteEdges],
+    () => routeEdgesHaveVisualTiers
+      ? routeEdges.filter((edge) => edge.visualTier !== "context")
+      : sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeSupportCutoff),
+    [routeEdges, routeEdgesHaveVisualTiers, routeSupportCutoff, sortedRouteEdges],
   );
   const focusRouteEdges = useMemo(
-    () => sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeFocusCutoff),
-    [routeFocusCutoff, sortedRouteEdges],
+    () => routeEdgesHaveVisualTiers
+      ? routeEdges.filter((edge) => edge.visualTier === "focus" || edge.visualTier === "accent")
+      : sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeFocusCutoff),
+    [routeEdges, routeEdgesHaveVisualTiers, routeFocusCutoff, sortedRouteEdges],
   );
   const accentRouteEdges = useMemo(
-    () => sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeAccentCutoff),
-    [routeAccentCutoff, sortedRouteEdges],
+    () => routeEdgesHaveVisualTiers
+      ? routeEdges.filter((edge) => edge.visualTier === "accent")
+      : sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeAccentCutoff),
+    [routeAccentCutoff, routeEdges, routeEdgesHaveVisualTiers, sortedRouteEdges],
   );
   useEffect(() => {
     if (!showParticles) return undefined;
@@ -747,8 +766,8 @@ export function OdFlowMapCanvas({
     () => [
       new PathLayer<RouteFlowEdge>({
         id: "route-flow-context",
-        data: showAllRouteEdges ? sortedRouteEdges : contextRouteEdges,
-        visible: showRoutes && (showAllRouteEdges ? sortedRouteEdges.length > 0 : contextRouteEdges.length > 0),
+        data: contextRouteEdges,
+        visible: showRoutes && contextRouteEdges.length > 0,
         pickable: false,
         widthUnits: "pixels" as const,
         widthMinPixels: 1,
@@ -756,17 +775,17 @@ export function OdFlowMapCanvas({
         jointRounded: true,
         capRounded: true,
         getPath: (edge) => edge.coordinates,
-        getWidth: (edge) => showAllRouteEdges ? 0.62 + routeStrength(edge, resolvedRouteMax) * 0.55 : 0.8 + routeStrength(edge, resolvedRouteMax) * 3.2,
+        getWidth: (edge) => showAllRouteEdges ? 0.62 + routeVisualStrength(edge, resolvedRouteMax) * 0.55 : 0.8 + routeVisualStrength(edge, resolvedRouteMax) * 3.2,
         getColor: (edge) => showAllRouteEdges
-          ? rgba(routePalette.routeLight, 18 + Math.round(Math.sqrt(clamp01(edge.averageDailyTrips / resolvedRouteMax)) * 52))
+          ? rgba(routePalette.routeLight, 18 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 52))
           : editorialRouteContext(edge, resolvedRouteMax),
         opacity: showAllRouteEdges ? 0.96 : 0.84,
       }),
 
       new PathLayer<RouteFlowEdge>({
         id: "route-flow-support",
-        data: showAllRouteEdges ? sortedRouteEdges : supportRouteEdges,
-        visible: showRoutes && (showAllRouteEdges ? sortedRouteEdges.length > 0 : supportRouteEdges.length > 0),
+        data: supportRouteEdges,
+        visible: showRoutes && supportRouteEdges.length > 0,
         pickable: false,
         widthUnits: "pixels" as const,
         widthMinPixels: 1,
@@ -774,10 +793,10 @@ export function OdFlowMapCanvas({
         jointRounded: true,
         capRounded: true,
         getPath: (edge) => edge.coordinates,
-        getWidth: (edge) => showAllRouteEdges ? 0.72 + routeStrength(edge, resolvedRouteMax) * 0.75 : 0.95 + routeStrength(edge, resolvedRouteMax) * 4.6,
+        getWidth: (edge) => showAllRouteEdges ? 0.72 + routeVisualStrength(edge, resolvedRouteMax) * 0.75 : 0.95 + routeVisualStrength(edge, resolvedRouteMax) * 4.6,
         getColor: (edge) => showAllRouteEdges
-          ? rgba(routePalette.route, 16 + Math.round(Math.sqrt(clamp01(edge.averageDailyTrips / resolvedRouteMax)) * 84))
-          : rgba(routePalette.routeLight, 42 + Math.round(routeStrength(edge, resolvedRouteMax) * 34)),
+          ? rgba(routePalette.route, 16 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 84))
+          : rgba(routePalette.routeLight, 42 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 34)),
         opacity: showAllRouteEdges ? 0.88 : 0.46,
       }),
 
@@ -792,7 +811,7 @@ export function OdFlowMapCanvas({
         jointRounded: true,
         capRounded: true,
         getPath: (edge) => edge.coordinates,
-        getWidth: (edge) => showAllRouteEdges ? 1.15 + routeStrength(edge, resolvedRouteMax) * 0.95 : 2.2 + routeStrength(edge, resolvedRouteMax) * 10.5,
+        getWidth: (edge) => showAllRouteEdges ? 1.15 + routeVisualStrength(edge, resolvedRouteMax) * 0.95 : 2.2 + routeVisualStrength(edge, resolvedRouteMax) * 10.5,
         getColor: (edge) => editorialRouteHalo(edge, resolvedRouteMax),
         opacity: showAllRouteEdges ? 0.38 : 0.92,
       }),
@@ -801,14 +820,14 @@ export function OdFlowMapCanvas({
         id: "route-flow-streets",
         data: showAllRouteEdges ? accentRouteEdges : focusRouteEdges,
         visible: showRoutes && (showAllRouteEdges ? accentRouteEdges.length > 0 : focusRouteEdges.length > 0),
-        pickable: showRoutes,
+        pickable: Boolean(onRouteHover) && showRoutes,
         widthUnits: "pixels" as const,
         widthMinPixels: 1,
         widthMaxPixels: 9,
         jointRounded: true,
         capRounded: true,
         getPath: (edge) => edge.coordinates,
-        getWidth: (edge) => showAllRouteEdges ? 0.95 + routeStrength(edge, resolvedRouteMax) * 1.1 : 0.95 + routeStrength(edge, resolvedRouteMax) * 6.9,
+        getWidth: (edge) => showAllRouteEdges ? 0.95 + routeVisualStrength(edge, resolvedRouteMax) * 1.1 : 0.95 + routeVisualStrength(edge, resolvedRouteMax) * 6.9,
         getColor: (edge) => editorialRouteColor(edge, resolvedRouteMax, colorScheme),
         opacity: 0.98,
         onHover: (info: { object?: RouteFlowEdge; x?: number; y?: number }) => {
@@ -903,12 +922,12 @@ export function OdFlowMapCanvas({
         radiusMaxPixels: 5,
         getPosition: (s: StationInfraMetricRecord) => [s.lon, s.lat],
         getRadius: showRoutes
-          ? sortedRouteEdges.length === 0 && sortedFlows.length === 0
+          ? routeEdges.length === 0 && sortedFlows.length === 0
             ? 2.3
             : 1.2
           : 1.4,
         getFillColor: showRoutes
-          ? sortedRouteEdges.length === 0 && sortedFlows.length === 0
+          ? routeEdges.length === 0 && sortedFlows.length === 0
             ? [116, 191, 255, 138] as RGBA
             : [146, 185, 255, 36] as RGBA
           : [200, 220, 240, 44] as RGBA,

@@ -10,11 +10,14 @@ export type RouteContributor = {
 export type RouteFlowEdge = {
   id: string;
   coordinates: [[number, number], [number, number]];
-  category: string;
-  lengthM: number;
-  annualTripCount: number;
+  category?: string;
+  lengthM?: number;
+  annualTripCount?: number;
   averageDailyTrips: number;
-  contributors: RouteContributor[];
+  visualRank?: number;
+  visualTier?: "context" | "support" | "focus" | "accent";
+  strength?: number;
+  contributors?: RouteContributor[];
 };
 
 export type RouteFlowSlice = {
@@ -27,6 +30,10 @@ export type RouteFlowSlice = {
   annualTripCount: number;
   averageDailyTrips: number;
   edgeCount: number;
+  rawEdgeCount?: number;
+  displayEdgeLimit?: number | "all-retained";
+  edgeRetention?: "all-routed-edges" | "debug-top-n" | string;
+  maxEdgeAverageDailyTrips?: number;
   candidateOdPairs: number;
   routedOdPairs: number;
   unroutedOdPairs: number;
@@ -35,6 +42,12 @@ export type RouteFlowSlice = {
   assignedRouteCount?: number;
   maxSnapDistanceM: number;
   edges: RouteFlowEdge[];
+  edgeFormat?: "compact-v1" | string;
+  edgeScales?: {
+    coordinate: number;
+    averageDailyTrips: number;
+    strength: number;
+  };
 };
 
 export type RouteFlowProfile = {
@@ -131,7 +144,11 @@ export type RouteFlowsData = {
     profileIds: StoryProfileId[];
     dayCounts: Record<StoryProfileId, number>;
     maxOdPairsPerSlice: number | "all-retained";
-    maxEdgesPerSlice: number;
+    maxEdgesPerSlice: number | "all-retained";
+    displayEdgeLimit?: number | "all-retained";
+    edgeRetention?: "all-routed-edges" | "debug-top-n" | string;
+    edgeStyleBasis?: string;
+    routeEdgeFormat?: "compact-v1" | string;
     routeAssignment?: {
       model: string;
       distribution: string;

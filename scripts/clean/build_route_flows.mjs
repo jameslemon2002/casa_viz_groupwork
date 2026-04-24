@@ -14,7 +14,22 @@ const publicDataDir = path.join(projectRoot, "public", "data");
 
 const coordinatePrecision = 5;
 const maxOdPairsPerSlice = process.env.ROUTE_FLOW_MAX_OD ? Number(process.env.ROUTE_FLOW_MAX_OD) : Infinity;
-const maxEdgesPerSlice = Number(process.env.ROUTE_FLOW_MAX_EDGES ?? 6000);
+const maxEdgesPerSlice = process.env.ROUTE_FLOW_MAX_EDGES ? Number(process.env.ROUTE_FLOW_MAX_EDGES) : Infinity;
+const routeDisplayEdgeLimit = process.env.ROUTE_DISPLAY_MAX_EDGES ? Number(process.env.ROUTE_DISPLAY_MAX_EDGES) : Infinity;
+const edgeRetentionMode = Number.isFinite(routeDisplayEdgeLimit) ? "debug-top-n" : "all-routed-edges";
+const includeEdgeContributors = process.env.ROUTE_INCLUDE_EDGE_CONTRIBUTORS === "1";
+const routeEdgeFormat = process.env.ROUTE_EDGE_FORMAT ?? "compact-v1";
+const compactEdgeScales = {
+  coordinate: 100000,
+  averageDailyTrips: 100,
+  strength: 10000,
+};
+const compactTierCodes = {
+  context: 0,
+  support: 1,
+  focus: 2,
+  accent: 3,
+};
 const maxContributorCount = 3;
 const graphSourceMode = process.env.ROUTE_GRAPH_SOURCE ?? "street-network";
 const maxSnapDistanceM = Number(process.env.ROUTE_MAX_SNAP_M ?? 600);
@@ -412,6 +427,55 @@ function averageDaily(count, profileId) {
   return count / (dayCounts[profileId] ?? dayCounts.all);
 }
 
+function visualTierForStrength(strength) {
+  if (strength >= 0.56) return "accent";
+  if (strength >= 0.34) return "focus";
+  if (strength >= 0.18) return "support";
+  return "context";
+}
+
+function prepareStyledEdges(edges, displayLimit = routeDisplayEdgeLimit) {
+  const sorted = edges.sort((a, b) => b.averageDailyTrips - a.averageDailyTrips);
+  const retained = Number.isFinite(displayLimit) ? sorted.slice(0, displayLimit) : sorted;
+  const maxEdgeAverageDailyTrips = sorted[0]?.averageDailyTrips ?? 1;
+
+  return {
+    styledEdges: retained.map((edge, index) => {
+      const strength = Number(Math.sqrt(Math.min(Math.max(edge.averageDailyTrips / Math.max(maxEdgeAverageDailyTrips, 1), 0), 1)).toFixed(4));
+      return {
+        ...edge,
+        visualRank: index + 1,
+        visualTier: visualTierForStrength(strength),
+        strength,
+      };
+    }),
+    maxEdgeAverageDailyTrips: Number(maxEdgeAverageDailyTrips.toFixed(2)),
+  };
+}
+
+function compactRouteEdge(edge) {
+  const [start, end] = edge.coordinates;
+  return [
+    Math.round(start[0] * compactEdgeScales.coordinate),
+    Math.round(start[1] * compactEdgeScales.coordinate),
+    Math.round(end[0] * compactEdgeScales.coordinate),
+    Math.round(end[1] * compactEdgeScales.coordinate),
+    Math.round(edge.averageDailyTrips * compactEdgeScales.averageDailyTrips),
+    Math.round((edge.strength ?? 0) * compactEdgeScales.strength),
+    compactTierCodes[edge.visualTier] ?? compactTierCodes.context,
+  ];
+}
+
+function maybeCompactRouteSlice(slice) {
+  if (routeEdgeFormat !== "compact-v1") return slice;
+  return {
+    ...slice,
+    edgeFormat: "compact-v1",
+    edgeScales: compactEdgeScales,
+    edges: slice.edges.map(compactRouteEdge),
+  };
+}
+
 function includeSlice(profileId, hour) {
   if (targetSliceFilter.size === 0) return true;
   return targetSliceFilter.has(`${profileId}:${hour}`);
@@ -679,26 +743,34 @@ async function main() {
                 lengthM: Number(edge.lengthM.toFixed(1)),
                 annualTripCount: 0,
                 averageDailyTrips: 0,
-                contributors: [],
+                ...(includeEdgeContributors ? { contributors: [] } : {}),
               });
             }
             const edgeRecord = edgeMap.get(edgeId);
             edgeRecord.annualTripCount += assignedCount;
             edgeRecord.averageDailyTrips += assignedAverageDaily;
-            addContributor(edgeRecord, flow, assignedCount);
+            if (includeEdgeContributors) {
+              addContributor(edgeRecord, flow, assignedCount);
+            }
           }
         }
       }
 
-      const edges = [...edgeMap.values()]
+      const rawEdges = [...edgeMap.values()]
         .sort((a, b) => b.averageDailyTrips - a.averageDailyTrips)
         .slice(0, maxEdgesPerSlice)
-        .map((edge) => ({
-          ...edge,
-          annualTripCount: Math.round(edge.annualTripCount),
-          averageDailyTrips: Number(edge.averageDailyTrips.toFixed(2)),
-          contributors: edge.contributors.map((item) => ({ ...item, count: Math.round(item.count) })),
-        }));
+        .map((edge) => {
+          const roundedEdge = {
+            ...edge,
+            annualTripCount: Math.round(edge.annualTripCount),
+            averageDailyTrips: Number(edge.averageDailyTrips.toFixed(2)),
+          };
+          if (includeEdgeContributors) {
+            roundedEdge.contributors = edge.contributors.map((item) => ({ ...item, count: Math.round(item.count) }));
+          }
+          return roundedEdge;
+        });
+      const { styledEdges, maxEdgeAverageDailyTrips } = prepareStyledEdges(rawEdges);
 
       return {
         profileId: profile.id,
@@ -708,10 +780,14 @@ async function main() {
         timeBucket: slice.timeBucket,
         annualTripCount: slice.tripCount,
         averageDailyTrips: Number(averageDaily(slice.tripCount, profile.id).toFixed(1)),
-        edgeCount: edges.length,
+        edgeCount: styledEdges.length,
+        rawEdgeCount: rawEdges.length,
+        displayEdgeLimit: Number.isFinite(routeDisplayEdgeLimit) ? routeDisplayEdgeLimit : "all-retained",
+        edgeRetention: edgeRetentionMode,
+        maxEdgeAverageDailyTrips,
         ...sliceStats,
         maxSnapDistanceM: Number(sliceStats.maxSnapDistanceM.toFixed(1)),
-        edges,
+        edges: styledEdges,
       };
     }),
   }));
@@ -749,7 +825,11 @@ async function main() {
       profileIds: profiles.map((profile) => profile.id),
       dayCounts,
       maxOdPairsPerSlice: Number.isFinite(maxOdPairsPerSlice) ? maxOdPairsPerSlice : "all-retained",
-      maxEdgesPerSlice,
+      maxEdgesPerSlice: Number.isFinite(maxEdgesPerSlice) ? maxEdgesPerSlice : "all-retained",
+      displayEdgeLimit: Number.isFinite(routeDisplayEdgeLimit) ? routeDisplayEdgeLimit : "all-retained",
+      edgeRetention: edgeRetentionMode,
+      edgeStyleBasis: "Per-slice absolute strength: sqrt(edge average daily trips / maximum edge average daily trips in the same slice).",
+      routeEdgeFormat,
       routeAssignment: {
         model: "candidate-route distance-decay allocation",
         distribution: "power-law",
@@ -791,10 +871,10 @@ async function main() {
     hourSlices: profile.hourSlices.map((slice) => {
       const sliceName = `${profile.id}_${String(slice.hour).padStart(2, "0")}.json`;
       const slicePath = `data/route_flows/${sliceName}`;
-      const slicePayload = {
+      const slicePayload = maybeCompactRouteSlice({
         ...slice,
         slicePath,
-      };
+      });
 
       sliceWrites.push(
         writeFile(path.join(processedSlicesDir, sliceName), `${JSON.stringify(slicePayload)}\n`, "utf8"),
@@ -805,6 +885,8 @@ async function main() {
         ...slice,
         edges: [],
         slicePath,
+        edgeFormat: routeEdgeFormat,
+        ...(routeEdgeFormat === "compact-v1" ? { edgeScales: compactEdgeScales } : {}),
       };
     }),
   }));

@@ -429,6 +429,7 @@ function inferHotspotTone(
 
 const reviewSteps = reviewTracks.flatMap((track) => track.steps);
 const reviewStepsById = Object.fromEntries(reviewSteps.map((step) => [step.id, step])) as Record<string, ReviewStepDefinition>;
+const storyRoutePrefetchSlices = reviewSteps.map((step) => ({ profileId: step.profileId, hour: step.hour }));
 
 function normalizeVariant(value: string | null): MapVariant {
   return variantOrder.includes(value as MapVariant) ? (value as MapVariant) : "all-routes";
@@ -720,7 +721,10 @@ export function MapReviewPage() {
     data: routeData,
     maxAverageDailyTrips,
     getSlice: getRouteSlice,
-  } = useRouteFlows(activeStep.profileId, activeStep.hour);
+  } = useRouteFlows(activeStep.profileId, activeStep.hour, {
+    prefetchAll: false,
+    prefetchSlices: storyRoutePrefetchSlices,
+  });
   const {
     ready: exploreRouteReady,
     activeSliceReady: exploreRouteSliceReady,
@@ -777,7 +781,8 @@ export function MapReviewPage() {
     return [...baseAnchors, ...hotspotAnchors];
   }, [activeStep.id, activeStep.timeLabel, activeSummary, activeTrack.label, manualFunctionAnchors]);
   const localRouteMax = useMemo(
-    () => Math.max(...(activeSummary?.routeSlice.edges ?? []).map((edge) => edge.averageDailyTrips), 1),
+    () => activeSummary?.routeSlice.maxEdgeAverageDailyTrips
+      ?? Math.max(...(activeSummary?.routeSlice.edges ?? []).map((edge) => edge.averageDailyTrips), 1),
     [activeSummary],
   );
 
@@ -1063,7 +1068,8 @@ export function MapReviewPage() {
   const exploreHourlySlice = getHourlySlice(exploreProfileId, exploreHour);
   const exploreRouteSlice = getExploreRouteSlice(exploreProfileId, exploreHour);
   const exploreRouteMax = useMemo(
-    () => Math.max(...exploreRouteSlice.edges.map((edge) => edge.averageDailyTrips), 1),
+    () => exploreRouteSlice.maxEdgeAverageDailyTrips
+      ?? Math.max(...exploreRouteSlice.edges.map((edge) => edge.averageDailyTrips), 1),
     [exploreRouteSlice],
   );
   const exploreMapProps = useMemo(() => {

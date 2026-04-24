@@ -63,7 +63,10 @@ type RouteFlowsState = {
 
 type RouteFlowsOptions = {
   prefetchAll?: boolean;
+  prefetchSlices?: Array<{ profileId: StoryProfileId; hour: number }>;
 };
+
+const emptyPrefetchSlices: Array<{ profileId: StoryProfileId; hour: number }> = [];
 
 function normalizePayload(payload: unknown): RouteFlowsData | null {
   if (!payload || typeof payload !== "object") return null;
@@ -76,12 +79,47 @@ function sliceKey(profileId: StoryProfileId, hour: number) {
   return `${profileId}:${hour}`;
 }
 
+const compactEdgeScales = {
+  coordinate: 100000,
+  averageDailyTrips: 100,
+  strength: 10000,
+};
+const compactTierNames = ["context", "support", "focus", "accent"] as const;
+
+type CompactRouteFlowEdge = [number, number, number, number, number, number, number];
+type RawRouteFlowSlice = Omit<RouteFlowSlice, "edges"> & {
+  edges: RouteFlowSlice["edges"] | CompactRouteFlowEdge[];
+};
+
+function normalizeRouteSlice(payload: RawRouteFlowSlice): RouteFlowSlice {
+  if (payload.edgeFormat !== "compact-v1") return payload as RouteFlowSlice;
+
+  const scales = payload.edgeScales ?? compactEdgeScales;
+  return {
+    ...payload,
+    edges: (payload.edges as CompactRouteFlowEdge[]).map((edge, index) => {
+      const start: [number, number] = [edge[0] / scales.coordinate, edge[1] / scales.coordinate];
+      const end: [number, number] = [edge[2] / scales.coordinate, edge[3] / scales.coordinate];
+      const strength = Number((edge[5] / scales.strength).toFixed(4));
+
+      return {
+        id: `${start[0].toFixed(5)},${start[1].toFixed(5)}|${end[0].toFixed(5)},${end[1].toFixed(5)}`,
+        coordinates: [start, end],
+        averageDailyTrips: Number((edge[4] / scales.averageDailyTrips).toFixed(2)),
+        visualRank: index + 1,
+        strength,
+        visualTier: compactTierNames[edge[6]] ?? "context",
+      };
+    }),
+  };
+}
+
 export function useRouteFlows(
   activeProfileId: StoryProfileId = "all",
   activeHour = 17,
   options: RouteFlowsOptions = {},
 ): RouteFlowsState {
-  const { prefetchAll = true } = options;
+  const { prefetchAll = true, prefetchSlices = emptyPrefetchSlices } = options;
   const [data, setData] = useState<RouteFlowsData>(fallback);
   const [ready, setReady] = useState(false);
   const [sliceCache, setSliceCache] = useState<Record<string, RouteFlowSlice>>({});
@@ -157,9 +195,9 @@ export function useRouteFlows(
         if (!response.ok) throw new Error(`Failed to load route slice: ${response.status}`);
         return response.json();
       })
-      .then((payload: RouteFlowSlice) => {
+      .then((payload: RawRouteFlowSlice) => {
         if (cancelled) return;
-        setSliceCache((current) => ({ ...current, [key]: payload }));
+        setSliceCache((current) => ({ ...current, [key]: normalizeRouteSlice(payload) }));
         setActiveSliceReady(true);
         setError(null);
       })
@@ -175,11 +213,20 @@ export function useRouteFlows(
   }, [activeHour, activeManifestSlice, activeProfileId, ready, sliceCache]);
 
   useEffect(() => {
-    if (!prefetchAll || !ready || profiles.length === 0) return undefined;
+    if (!ready || profiles.length === 0) return undefined;
 
-    const pendingSlices = profiles.flatMap((profile) =>
-      profile.hourSlices.filter((slice) => slice.slicePath && !sliceCache[sliceKey(profile.id, slice.hour)]),
-    );
+    const pendingSlices = prefetchAll
+      ? profiles.flatMap((profile) =>
+        profile.hourSlices.filter((slice) => slice.slicePath && !sliceCache[sliceKey(profile.id, slice.hour)]),
+      )
+      : Array.from(new Map(
+        prefetchSlices
+          .map((request) => profiles
+            .find((profile) => profile.id === request.profileId)
+            ?.hourSlices.find((slice) => slice.hour === request.hour))
+          .filter((slice): slice is RouteFlowSlice => Boolean(slice?.slicePath && !sliceCache[sliceKey(slice.profileId, slice.hour)]))
+          .map((slice) => [sliceKey(slice.profileId, slice.hour), slice] as const),
+      ).values());
 
     if (pendingSlices.length === 0) return undefined;
 
@@ -201,12 +248,12 @@ export function useRouteFlows(
         try {
           const response = await fetch(`${import.meta.env.BASE_URL}${slice.slicePath}`);
           if (!response.ok) throw new Error(`Failed to prefetch route slice: ${response.status}`);
-          const payload = (await response.json()) as RouteFlowSlice;
+          const payload = (await response.json()) as RawRouteFlowSlice;
           if (cancelled) return;
           setSliceCache((current) => {
             const key = sliceKey(slice.profileId, slice.hour);
             if (current[key]) return current;
-            return { ...current, [key]: payload };
+            return { ...current, [key]: normalizeRouteSlice(payload) };
           });
         } catch (err: unknown) {
           if (cancelled) return;
@@ -224,7 +271,7 @@ export function useRouteFlows(
       cancelled = true;
       cancelIdle(idleHandle);
     };
-  }, [prefetchAll, profiles, ready, sliceCache]);
+  }, [prefetchAll, prefetchSlices, profiles, ready, sliceCache]);
 
   return {
     data,
