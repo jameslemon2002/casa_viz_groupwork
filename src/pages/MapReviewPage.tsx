@@ -736,12 +736,6 @@ export function MapReviewPage() {
 
     return [...baseAnchors, ...hotspotAnchors];
   }, [activeStep.id, activeStep.timeLabel, activeSummary, activeTrack.label, manualFunctionAnchors]);
-  const localRouteMax = useMemo(
-    () => activeSummary?.routeSlice.maxEdgeAverageDailyTrips
-      ?? Math.max(...(activeSummary?.routeSlice.edges ?? []).map((edge) => edge.averageDailyTrips), 1),
-    [activeSummary],
-  );
-
   const handleMapReady = useCallback((map: MapLibreMap | null) => {
     setMapInstance(map);
   }, []);
@@ -1023,11 +1017,6 @@ export function MapReviewPage() {
   const weekendHourlyProfile = getHourlyProfile("weekends");
   const exploreHourlySlice = getHourlySlice(exploreProfileId, exploreHour);
   const exploreRouteSlice = getExploreRouteSlice(exploreProfileId, exploreHour);
-  const exploreRouteMax = useMemo(
-    () => exploreRouteSlice.maxEdgeAverageDailyTrips
-      ?? Math.max(...exploreRouteSlice.edges.map((edge) => edge.averageDailyTrips), 1),
-    [exploreRouteSlice],
-  );
   const exploreMapProps = useMemo(() => {
     if (exploreLayer === "routes") {
       return {
@@ -1036,7 +1025,7 @@ export function MapReviewPage() {
         hotspots: exploreHourlySlice.hotspots.slice(0, 24),
         routeEdges: exploreRouteSlice.edges,
         routeDisplayMode: "all" as const,
-        routeFlowMax: exploreRouteMax,
+        routeFlowMax: exploreMaxAverageDailyTrips,
       };
     }
     return {
@@ -1047,7 +1036,7 @@ export function MapReviewPage() {
       routeDisplayMode: "hierarchy" as const,
       routeFlowMax: exploreMaxAverageDailyTrips,
     };
-  }, [exploreHourlySlice, exploreLayer, exploreMaxAverageDailyTrips, exploreRouteMax, exploreRouteSlice.edges]);
+  }, [exploreHourlySlice, exploreLayer, exploreMaxAverageDailyTrips, exploreRouteSlice.edges]);
 
   const mapFocusBounds = useMemo(() => null, []);
   const tooltipPlacement = useMemo(() => {
@@ -1283,7 +1272,7 @@ export function MapReviewPage() {
             compareFlowProfileId={null}
             interactive={false}
             globalFlowMax={mapProps.globalFlowMax}
-            routeFlowMax={variant === "all-routes" ? localRouteMax : maxAverageDailyTrips}
+            routeFlowMax={maxAverageDailyTrips}
             routeDisplayMode={variant === "all-routes" ? "all" : "hierarchy"}
             focusBounds={mapFocusBounds}
             functionAnchors={[]}

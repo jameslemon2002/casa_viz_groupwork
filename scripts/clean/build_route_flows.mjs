@@ -434,14 +434,15 @@ function visualTierForStrength(strength) {
   return "context";
 }
 
-function prepareStyledEdges(edges, displayLimit = routeDisplayEdgeLimit) {
+function prepareStyledEdges(edges, displayLimit = routeDisplayEdgeLimit, strengthMaxAverageDailyTrips = null) {
   const sorted = edges.sort((a, b) => b.averageDailyTrips - a.averageDailyTrips);
   const retained = Number.isFinite(displayLimit) ? sorted.slice(0, displayLimit) : sorted;
   const maxEdgeAverageDailyTrips = sorted[0]?.averageDailyTrips ?? 1;
+  const strengthDenominator = strengthMaxAverageDailyTrips ?? maxEdgeAverageDailyTrips;
 
   return {
     styledEdges: retained.map((edge, index) => {
-      const strength = Number(Math.sqrt(Math.min(Math.max(edge.averageDailyTrips / Math.max(maxEdgeAverageDailyTrips, 1), 0), 1)).toFixed(4));
+      const strength = Number(Math.sqrt(Math.min(Math.max(edge.averageDailyTrips / Math.max(strengthDenominator, 1), 0), 1)).toFixed(4));
       return {
         ...edge,
         visualRank: index + 1,
@@ -795,13 +796,19 @@ async function main() {
   let maxAverageDailyTrips = 1;
   for (const profile of profiles) {
     for (const slice of profile.hourSlices) {
-      for (const edge of slice.edges) {
-        if (edge.averageDailyTrips > maxAverageDailyTrips) {
-          maxAverageDailyTrips = edge.averageDailyTrips;
-        }
-      }
+      maxAverageDailyTrips = Math.max(maxAverageDailyTrips, slice.maxEdgeAverageDailyTrips ?? 1);
     }
   }
+  const styledProfiles = profiles.map((profile) => ({
+    ...profile,
+    hourSlices: profile.hourSlices.map((slice) => {
+      const { styledEdges } = prepareStyledEdges(slice.edges, routeDisplayEdgeLimit, maxAverageDailyTrips);
+      return {
+        ...slice,
+        edges: styledEdges,
+      };
+    }),
+  }));
 
   const graphSourceLabel = graphSourceMode === "cycle-infrastructure"
     ? "TfL/OSM-derived cycling infrastructure lines currently bundled with the project"
@@ -822,13 +829,13 @@ async function main() {
       sourceGraph: graphSourceLabel,
       routeModel: routeModelDescription,
       limitation: limitationDescription,
-      profileIds: profiles.map((profile) => profile.id),
+      profileIds: styledProfiles.map((profile) => profile.id),
       dayCounts,
       maxOdPairsPerSlice: Number.isFinite(maxOdPairsPerSlice) ? maxOdPairsPerSlice : "all-retained",
       maxEdgesPerSlice: Number.isFinite(maxEdgesPerSlice) ? maxEdgesPerSlice : "all-retained",
       displayEdgeLimit: Number.isFinite(routeDisplayEdgeLimit) ? routeDisplayEdgeLimit : "all-retained",
       edgeRetention: edgeRetentionMode,
-      edgeStyleBasis: "Per-slice absolute strength: sqrt(edge average daily trips / maximum edge average daily trips in the same slice).",
+      edgeStyleBasis: "Global absolute strength: sqrt(edge average daily trips / maximum edge average daily trips across all route slices).",
       routeEdgeFormat,
       routeAssignment: {
         model: "candidate-route distance-decay allocation",
@@ -854,7 +861,7 @@ async function main() {
       maxAverageDailyTrips: Number(maxAverageDailyTrips.toFixed(2)),
     },
     temporalSummary: buildTemporalSummary(storyData, temporalData),
-    profiles,
+    profiles: styledProfiles,
   };
 
   await mkdir(processedDir, { recursive: true });

@@ -74,7 +74,7 @@ function maybeCompactRouteSlice(slice) {
   };
 }
 
-function optimizeSlice(slice) {
+function optimizeSlice(slice, globalMaxEdgeAverageDailyTrips) {
   const sourceEdges = normalizeEdges(slice);
   const rawEdgeCount = Number.isFinite(displayEdgeLimit)
     ? (slice.rawEdgeCount ?? slice.edgeCount ?? sourceEdges.length)
@@ -85,7 +85,7 @@ function optimizeSlice(slice) {
   const edges = retainedEdges.map((edge, index) => ({
     ...edge,
     visualRank: index + 1,
-    strength: Number(Math.sqrt(Math.min(Math.max(edge.averageDailyTrips / Math.max(maxEdgeAverageDailyTrips, 1), 0), 1)).toFixed(4)),
+    strength: Number(Math.sqrt(Math.min(Math.max(edge.averageDailyTrips / Math.max(globalMaxEdgeAverageDailyTrips, 1), 0), 1)).toFixed(4)),
   })).map((edge) => ({
     ...edge,
     visualTier: visualTierForStrength(edge.strength),
@@ -103,14 +103,24 @@ function optimizeSlice(slice) {
 }
 
 const files = (await readdir(routeFlowDir)).filter((file) => file.endsWith(".json")).sort();
-let totalBefore = 0;
-let totalAfter = 0;
+const loadedSlices = [];
+let globalMaxEdgeAverageDailyTrips = 1;
 
 for (const file of files) {
   const fullPath = path.join(routeFlowDir, file);
   const slice = JSON.parse(await readFile(fullPath, "utf8"));
+  const sourceEdges = normalizeEdges(slice);
+  const maxEdgeAverageDailyTrips = Math.max(...sourceEdges.map((edge) => edge.averageDailyTrips), 1);
+  globalMaxEdgeAverageDailyTrips = Math.max(globalMaxEdgeAverageDailyTrips, maxEdgeAverageDailyTrips);
+  loadedSlices.push({ fullPath, slice });
+}
+
+let totalBefore = 0;
+let totalAfter = 0;
+
+for (const { fullPath, slice } of loadedSlices) {
   totalBefore += slice.edges.length;
-  const optimized = optimizeSlice(slice);
+  const optimized = optimizeSlice(slice, globalMaxEdgeAverageDailyTrips);
   totalAfter += optimized.edges.length;
   await writeFile(fullPath, `${JSON.stringify(optimized)}\n`, "utf8");
 }
@@ -122,7 +132,7 @@ const optimizedManifest = {
     ...manifest.meta,
     displayEdgeLimit: displayEdgeLimitLabel,
     edgeRetention,
-    edgeStyleBasis: "Per-slice absolute strength: sqrt(edge average daily trips / maximum edge average daily trips in the same slice).",
+    edgeStyleBasis: "Global absolute strength: sqrt(edge average daily trips / maximum edge average daily trips across all route slices).",
     routeEdgeFormat,
   },
   profiles: manifest.profiles.map((profile) => ({
