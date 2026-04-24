@@ -361,6 +361,35 @@ const stepGreenspaceIds: Record<string, string[]> = {
   "weekends-17": ["hyde-park", "kensington-gardens", "battersea-park", "regents-park"],
 };
 
+const evidenceStepIds = new Set(["weekdays-08", "weekends-13"]);
+
+type StoryPostcardDefinition = {
+  kicker: string;
+  title: string;
+  body: string;
+  tone: FunctionAnchorTone;
+  position: string;
+};
+
+const stepPostcards: Record<string, StoryPostcardDefinition> = {
+  "weekdays-13": {
+    kicker: "Map note",
+    title: "The western parks enter the weekday story.",
+    body:
+      "The midday map is not just a weaker commute. It pulls Hyde Park, Exhibition Road and nearby cultural edges into the same service field as the office core.",
+    tone: "green",
+    position: "42% 55%",
+  },
+  "weekends-23": {
+    kicker: "Map note",
+    title: "Night geography is smaller, but not random.",
+    body:
+      "Late weekend routes thin out, yet the remaining activity still clusters around Soho, South Bank and Whitechapel rather than dissolving evenly across the network.",
+    tone: "pink",
+    position: "56% 48%",
+  },
+};
+
 function dominantToneForStep(stepId: string): FunctionAnchorTone {
   if (stepId.includes("23")) return "pink";
   if (stepId.includes("13") || stepId.includes("17")) {
@@ -515,13 +544,14 @@ function StepEvidenceCard({ step, summary, profileSlices }: StepEvidenceCardProp
   const geometry = useMemo(() => buildMiniRhythmGeometry(profileSlices, step.hour), [profileSlices, step.hour]);
   const dominantPlace = summary.topHotspots[0] ?? "no single dominant hotspot";
   const activeHourLabel = `${String(step.hour).padStart(2, "0")}:00`;
+  const typicalDayLabel = step.profileId === "weekdays" ? "typical weekday" : "typical weekend day";
 
   return (
     <aside className={`map-review-step-inset map-review-step-inset--${tone}`} aria-label={`${step.timeLabel} evidence card`}>
       <div className="map-review-step-inset-copy">
         <span className="map-review-step-inset-kicker">{step.profileId === "weekdays" ? "Weekday pulse" : "Weekend pulse"}</span>
         <strong>{activeHourLabel}</strong>
-        <span>{formatCompact(summary.averageDailyTrips)} avg trips/day · {summary.routeSlice.edgeCount.toLocaleString("en-GB")} routed segments</span>
+        <span>{formatCompact(summary.averageDailyTrips)} rides in this hour per {typicalDayLabel} · {summary.routeSlice.edgeCount.toLocaleString("en-GB")} routed segments</span>
       </div>
       <svg
         className="map-review-step-sparkline"
@@ -550,6 +580,23 @@ function StepEvidenceCard({ step, summary, profileSlices }: StepEvidenceCardProp
       <div className="map-review-step-inset-foot">
         <span>Top place</span>
         <strong>{dominantPlace}</strong>
+      </div>
+    </aside>
+  );
+}
+
+function StoryPostcard({ card }: { card: StoryPostcardDefinition }) {
+  return (
+    <aside className={`map-review-story-postcard map-review-story-postcard--${card.tone}`}>
+      <div
+        className="map-review-story-postcard-image"
+        style={{ backgroundPosition: card.position }}
+        aria-hidden="true"
+      />
+      <div className="map-review-story-postcard-copy">
+        <span>{card.kicker}</span>
+        <strong>{card.title}</strong>
+        <p>{card.body}</p>
       </div>
     </aside>
   );
@@ -1216,6 +1263,7 @@ export function MapReviewPage() {
                     {track.steps.map((step) => {
                       const summary = stepSummaries[step.id];
                       const isActive = step.id === activeStep.id;
+                      const postcard = stepPostcards[step.id];
                       return (
                         <section
                           key={step.id}
@@ -1227,11 +1275,14 @@ export function MapReviewPage() {
                         >
                           <p className="map-review-step-body">{step.body(summary)}</p>
                           <p className="map-review-step-note">{step.note(summary)}</p>
-                          <StepEvidenceCard
-                            step={step}
-                            summary={summary}
-                            profileSlices={routeProfilesById[step.profileId] ?? []}
-                          />
+                          {evidenceStepIds.has(step.id) ? (
+                            <StepEvidenceCard
+                              step={step}
+                              summary={summary}
+                              profileSlices={routeProfilesById[step.profileId] ?? []}
+                            />
+                          ) : null}
+                          {postcard ? <StoryPostcard card={postcard} /> : null}
                         </section>
                       );
                     })}
@@ -1421,7 +1472,7 @@ export function MapReviewPage() {
 
           <dl className="map-review-explore-metrics">
             <div>
-              <dt>Average trips</dt>
+              <dt>Rides in hour</dt>
               <dd>{formatPrecise(exploreRouteSlice.averageDailyTrips || exploreHourlySlice.tripCount)}</dd>
             </div>
             <div>

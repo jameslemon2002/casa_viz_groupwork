@@ -57,7 +57,7 @@ export function WeekdayWeekendChart({
     <div className="weekday-weekend-chart">
       <div className="chart-header">
         <h3 className="chart-title">Weekday and weekend hourly rhythm</h3>
-        <p className="chart-subtitle">Average trips per weekday or weekend day. Every hour is selectable.</p>
+        <p className="chart-subtitle">Rides starting in each hour, normalised to one typical weekday or weekend day.</p>
       </div>
 
       <div className="chart-container">
@@ -76,7 +76,7 @@ export function WeekdayWeekendChart({
                   type="button"
                   className={isWeekdayActive ? "bar bar--weekday bar--active" : "bar bar--weekday"}
                   style={{ height: `${weekdayHeight}%` }}
-                  title={`Weekday ${weekday.hour}:00 (${Math.round(weekday.averageDailyTrips).toLocaleString()} avg trips/day)`}
+                  title={`Weekday ${weekday.hour}:00 (${Math.round(weekday.averageDailyTrips).toLocaleString()} rides in this hour per typical weekday)`}
                   aria-pressed={isWeekdayActive}
                   onClick={() => onBarClick("weekdays", weekday.hour)}
                 />
@@ -84,7 +84,7 @@ export function WeekdayWeekendChart({
                   type="button"
                   className={isWeekendActive ? "bar bar--weekend bar--active" : "bar bar--weekend"}
                   style={{ height: `${weekendHeight}%` }}
-                  title={`Weekend ${weekend.hour}:00 (${Math.round(weekend.averageDailyTrips).toLocaleString()} avg trips/day)`}
+                  title={`Weekend ${weekend.hour}:00 (${Math.round(weekend.averageDailyTrips).toLocaleString()} rides in this hour per typical weekend day)`}
                   aria-pressed={isWeekendActive}
                   onClick={() => onBarClick("weekends", weekend.hour)}
                 />
@@ -106,12 +106,12 @@ export function WeekdayWeekendChart({
         <div className="stat-item">
           <span className="stat-label">Weekday peak</span>
           <span className="stat-value">{peakWeekday.hour}:00</span>
-          <span className="stat-trips">{Math.round(peakWeekday.averageDailyTrips).toLocaleString()} avg/day</span>
+          <span className="stat-trips">{Math.round(peakWeekday.averageDailyTrips).toLocaleString()} rides in that hour</span>
         </div>
         <div className="stat-item">
           <span className="stat-label">Weekend peak</span>
           <span className="stat-value">{peakWeekend.hour}:00</span>
-          <span className="stat-trips">{Math.round(peakWeekend.averageDailyTrips).toLocaleString()} avg/day</span>
+          <span className="stat-trips">{Math.round(peakWeekend.averageDailyTrips).toLocaleString()} rides in that hour</span>
         </div>
       </div>
 
@@ -127,7 +127,7 @@ export function WeekdayWeekendChart({
       </div>
 
       <p className="chart-compare-note">
-        Current map selection: <strong>{activeProfileId === "weekdays" ? "Weekday" : "Weekend"}</strong> at <strong>{activeHour}:00</strong>. This comparison is normalized per profile day.
+        Current map selection: <strong>{activeProfileId === "weekdays" ? "Weekday" : "Weekend"}</strong> at <strong>{activeHour}:00</strong>. Values are hourly rides per typical profile day, not full-day totals.
       </p>
     </div>
   );
