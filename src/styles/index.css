@@ -89,7 +89,7 @@ body {
   min-height: 100vh;
 }
 
-/* ── v3 atlas-first layout ── */
+/* ── legacy atlas layout styles, not mounted in the current story route ── */
 
 .atlas-page {
   min-height: 100vh;
@@ -2909,7 +2909,7 @@ body {
   height: 70vh;
 }
 
-/* ── v2 story flow ── */
+/* ── legacy story-flow styles, not mounted in the current story route ── */
 
 .story-flow {
   position: relative;

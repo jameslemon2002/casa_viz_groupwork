@@ -1092,7 +1092,7 @@
   "sceneDefaults": [
     {
       "id": "hero",
-      "title": "London Shared Bike Rhythms",
+      "title": "How London Borrows Its Bikes",
       "profileId": "weekdays",
       "timeMode": "hour",
       "hour": 8,

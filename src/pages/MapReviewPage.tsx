@@ -10,7 +10,6 @@ import type { HourlyFlow, HourlySlice } from "../hooks/useHourlyFlows";
 import type { ColorScheme, FunctionAnchor, FunctionAnchorTone } from "../components/maps/OdFlowMapCanvas";
 import type { RouteFlowSlice, StoryProfileId } from "../types/routeFlows";
 
-type MapVariant = "all-routes" | "corridors-od" | "flows" | "hotspots" | "stations";
 type ExploreLayer = "routes" | "hotspots";
 type ReviewTrackId = "weekday" | "weekend";
 type ReviewStepProfileId = "weekdays" | "weekends";
@@ -45,7 +44,6 @@ type ReviewTrackDefinition = {
   steps: ReviewStepDefinition[];
 };
 
-const variantOrder: MapVariant[] = ["all-routes", "corridors-od", "flows", "hotspots", "stations"];
 const exploreLayerOptions: Array<{ id: ExploreLayer; label: string }> = [
   { id: "routes", label: "Routes" },
   { id: "hotspots", label: "Hotspots" },
@@ -404,10 +402,6 @@ const reviewSteps = reviewTracks.flatMap((track) => track.steps);
 const reviewStepsById = Object.fromEntries(reviewSteps.map((step) => [step.id, step])) as Record<string, ReviewStepDefinition>;
 const storyRoutePrefetchSlices = reviewSteps.map((step) => ({ profileId: step.profileId, hour: step.hour }));
 
-function normalizeVariant(value: string | null): MapVariant {
-  return variantOrder.includes(value as MapVariant) ? (value as MapVariant) : "all-routes";
-}
-
 function normalizeProfile(value: string | null): ReviewStepProfileId | null {
   return value === "weekdays" || value === "weekends" ? value : null;
 }
@@ -436,22 +430,6 @@ function joinNatural(items: string[]) {
 
 function isLoopFlow(flow: HourlyFlow) {
   return flow.oName === flow.dName || (flow.oLon === flow.dLon && flow.oLat === flow.dLat);
-}
-
-function pickShowcaseFlows(flows: HourlyFlow[]) {
-  const seenPairs = new Set<string>();
-  const picked: HourlyFlow[] = [];
-
-  for (const flow of [...flows].sort((left, right) => right.count - left.count)) {
-    if (isLoopFlow(flow)) continue;
-    const pairKey = `${flow.oName}->${flow.dName}`;
-    if (seenPairs.has(pairKey)) continue;
-    seenPairs.add(pairKey);
-    picked.push(flow);
-    if (picked.length === 10) break;
-  }
-
-  return picked;
 }
 
 function stepFromQuery(profileId: ReviewStepProfileId | null, hour: number | null) {
@@ -638,7 +616,6 @@ function resolveHoverTarget(
 
 export function MapReviewPage() {
   const [searchParams] = useSearchParams();
-  const variant = normalizeVariant(searchParams.get("variant"));
   const explicitProfileId = normalizeProfile(searchParams.get("profile"));
   const explicitHour = normalizeHour(searchParams.get("hour"));
   const captureMode = searchParams.get("capture") === "1";
@@ -705,7 +682,6 @@ export function MapReviewPage() {
       routeData.profiles.map((profile) => [profile.id, profile.hourSlices]),
     ) as Partial<Record<StoryProfileId, RouteFlowSlice[]>>;
   }, [routeData.profiles]);
-  const showcaseFlows = useMemo(() => pickShowcaseFlows(activeSummary?.hourlySlice.flows ?? []), [activeSummary]);
   const manualFunctionAnchors = stepFunctionAnchors[activeStep.id] ?? [];
   const activeFunctionAnchors = useMemo<DisplayAnchor[]>(() => {
     const baseAnchors = manualFunctionAnchors.map((anchor) => ({
@@ -959,59 +935,15 @@ export function MapReviewPage() {
       };
     }
 
-    if (variant === "stations") {
-      return {
-        viewMode: "routes" as const,
-        flows: [] as HourlyFlow[],
-        hotspots: [],
-        routeEdges: [],
-        activeFlowProfileId: activeStep.profileId as StoryProfileId,
-        globalFlowMax: 1,
-      };
-    }
-
-    if (variant === "all-routes") {
-      return {
-        viewMode: "routes" as const,
-        flows: [] as HourlyFlow[],
-        hotspots: [],
-        routeEdges: activeSummary.routeSlice.edges,
-        activeFlowProfileId: activeStep.profileId as StoryProfileId,
-        globalFlowMax: 1,
-      };
-    }
-
-    if (variant === "corridors-od") {
-      return {
-        viewMode: "routes" as const,
-        flows: showcaseFlows,
-        hotspots: activeSummary.hourlySlice.hotspots.slice(0, 8),
-        routeEdges: activeSummary.routeSlice.edges,
-        activeFlowProfileId: activeStep.profileId as StoryProfileId,
-        globalFlowMax: 1,
-      };
-    }
-
-    if (variant === "hotspots") {
-      return {
-        viewMode: "hotspots" as const,
-        flows: [] as HourlyFlow[],
-        hotspots: activeSummary.hourlySlice.hotspots,
-        routeEdges: [],
-        activeFlowProfileId: activeStep.profileId as StoryProfileId,
-        globalFlowMax: 1,
-      };
-    }
-
     return {
-      viewMode: "flows" as const,
-      flows: activeSummary.hourlySlice.flows.filter((flow) => !isLoopFlow(flow)).slice(0, 120),
+      viewMode: "routes" as const,
+      flows: [] as HourlyFlow[],
       hotspots: [],
-      routeEdges: [],
+      routeEdges: activeSummary.routeSlice.edges,
       activeFlowProfileId: activeStep.profileId as StoryProfileId,
-      globalFlowMax,
+      globalFlowMax: 1,
     };
-  }, [activeStep.profileId, activeSummary, globalFlowMax, showcaseFlows, variant]);
+  }, [activeStep.profileId, activeSummary]);
 
   const weekdayHourlyProfile = getHourlyProfile("weekdays");
   const weekendHourlyProfile = getHourlyProfile("weekends");
@@ -1273,7 +1205,7 @@ export function MapReviewPage() {
             interactive={false}
             globalFlowMax={mapProps.globalFlowMax}
             routeFlowMax={maxAverageDailyTrips}
-            routeDisplayMode={variant === "all-routes" ? "all" : "hierarchy"}
+            routeDisplayMode="all"
             focusBounds={mapFocusBounds}
             functionAnchors={[]}
             onMapReady={handleMapReady}

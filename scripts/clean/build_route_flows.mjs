@@ -8,7 +8,6 @@ const flowsPath = path.join(projectRoot, "public", "data", "flows_hourly.json");
 const storyPath = path.join(projectRoot, "public", "data", "typical_week_story.json");
 const temporalPath = path.join(projectRoot, "public", "data", "temporal_summary.json");
 const streetNetworkPath = path.join(projectRoot, "public", "data", "service_street_network.geojson");
-const infrastructurePath = path.join(projectRoot, "public", "data", "cycle_infrastructure.geojson");
 const processedDir = path.join(projectRoot, "data", "processed");
 const publicDataDir = path.join(projectRoot, "public", "data");
 
@@ -31,7 +30,6 @@ const compactTierCodes = {
   accent: 3,
 };
 const maxContributorCount = 3;
-const graphSourceMode = process.env.ROUTE_GRAPH_SOURCE ?? "street-network";
 const maxSnapDistanceM = Number(process.env.ROUTE_MAX_SNAP_M ?? 600);
 const targetSliceFilter = new Set(
   (process.env.ROUTE_TARGET_SLICES ?? "")
@@ -614,20 +612,19 @@ function buildTemporalSummary(storyData, temporalData) {
 }
 
 async function main() {
-  const graphSourcePath = graphSourceMode === "cycle-infrastructure" ? infrastructurePath : streetNetworkPath;
-  const [flowsData, storyData, temporalData, infrastructure] = await Promise.all([
+  const [flowsData, storyData, temporalData, streetNetwork] = await Promise.all([
     readFile(flowsPath, "utf8").then(JSON.parse),
     readFile(storyPath, "utf8").then(JSON.parse),
     readOptionalJson(temporalPath),
-    readFile(graphSourcePath, "utf8").then(JSON.parse).catch((error) => {
-      if (error?.code === "ENOENT" && graphSourceMode === "street-network") {
+    readFile(streetNetworkPath, "utf8").then(JSON.parse).catch((error) => {
+      if (error?.code === "ENOENT") {
         throw new Error("Missing public/data/service_street_network.geojson. Run `npm run data:fetch:street-network` before rebuilding route flows.");
       }
       throw error;
     }),
   ]);
 
-  const graph = buildGraph(infrastructure);
+  const graph = buildGraph(streetNetwork);
   const components = componentLabels(graph);
   const largestComponents = new Set(
     components.sizes
@@ -810,22 +807,14 @@ async function main() {
     }),
   }));
 
-  const graphSourceLabel = graphSourceMode === "cycle-infrastructure"
-    ? "TfL/OSM-derived cycling infrastructure lines currently bundled with the project"
-    : "OSM-derived rideable street network clipped to the Santander Cycles service area";
-  const routeModelDescription = graphSourceMode === "cycle-infrastructure"
-    ? "Seeded stochastic multi-route assignment with power-law distance decay over candidate routes on the available cycling-infrastructure graph"
-    : "Seeded stochastic multi-route assignment with power-law distance decay over an OSM-derived service-area street network";
-  const limitationDescription = graphSourceMode === "cycle-infrastructure"
-    ? "These are inferred route-use allocations, not GPS traces or observed route choice. The current graph is a prototype based on bundled cycling-infrastructure lines, not a complete OSM routable street network."
-    : "These are inferred route-use allocations, not GPS traces or observed route choice. Routes are assigned on a simplified, undirected OSM street graph within the service area; turn restrictions, one-way rules and detailed bike access constraints are not fully modelled.";
+  const graphSourceLabel = "OSM-derived rideable street network clipped to the Santander Cycles service area";
+  const routeModelDescription = "Seeded stochastic multi-route assignment with power-law distance decay over an OSM-derived service-area street network";
+  const limitationDescription = "These are inferred route-use allocations, not GPS traces or observed route choice. Routes are assigned on a simplified, undirected OSM street graph within the service area; turn restrictions, one-way rules and detailed bike access constraints are not fully modelled.";
 
   const output = {
     meta: {
       generatedAt: new Date().toISOString(),
-      source: graphSourceMode === "cycle-infrastructure"
-        ? "Derived from public/data/flows_hourly.json and public/data/cycle_infrastructure.geojson"
-        : "Derived from public/data/flows_hourly.json and public/data/service_street_network.geojson",
+      source: "Derived from public/data/flows_hourly.json and public/data/service_street_network.geojson",
       sourceGraph: graphSourceLabel,
       routeModel: routeModelDescription,
       limitation: limitationDescription,

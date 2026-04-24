@@ -36,7 +36,7 @@ const dayparts = [
 const sceneDefaults = [
   {
     id: "hero",
-    title: "London Shared Bike Rhythms",
+    title: "How London Borrows Its Bikes",
     profileId: "weekdays",
     timeMode: "hour",
     hour: 8,
@@ -1017,16 +1017,6 @@ async function main() {
   await mkdir(processedDir, { recursive: true });
   await mkdir(publicDataDir, { recursive: true });
 
-  await writeFile(
-    path.join(processedDir, "cycle_infrastructure.geojson"),
-    `${JSON.stringify(cycleInfrastructureGeoJson, null, 2)}\n`,
-    "utf8"
-  );
-  await writeFile(
-    path.join(publicDataDir, "cycle_infrastructure.geojson"),
-    `${JSON.stringify(cycleInfrastructureGeoJson, null, 2)}\n`,
-    "utf8"
-  );
   await writeFile(
     path.join(processedDir, "typical_week_story.json"),
     `${JSON.stringify(storyDataset, null, 2)}\n`,

@@ -1,54 +1,75 @@
-# London Shared Bike Rhythms
+# How London Borrows Its Bikes
 
-Single-page scrollytelling website for the 2025 Santander Cycles archive.
+Carbon-Brief-inspired scrollytelling website for London's Santander Cycles usage rhythms.
 
-## Research Question
+Live site:
 
-**How does London's bike-share network change across hours, weekdays and weekends, and how do these temporal rhythms reorganise space across the city?**
+<https://jameslemon2002.github.io/casa_viz_groupwork/>
 
-## What This Version Does
+Repository:
 
-- one canonical route: `/`
-- full-screen hero map, then left-story / right-map longform layout
-- true hourly OD slices for `all / weekdays / weekends`
-- weekend comparison chart that can switch the map to the same hour in weekday or weekend mode
-- `ghost compare` in the weekend act:
-  weekday flows stay blue, weekend flows stay gold
-- fixed-camera `2.5D` map stage using `MapLibre + deck.gl`
+<https://github.com/jameslemon2002/casa_viz_groupwork>
 
-## Story Structure
+## Project Focus
 
-1. Hero
-2. 24-hour rhythm
-3. Weekday peak
-4. Weekend city
-5. Spatial shift
-6. Conclusion
-7. Method appendix
+The project asks how the same inner London docking-bike network is used differently across a typical day. It does not treat the bikes or stations as changing infrastructure. Instead, it visualises changing usage regimes: weekday work access, midday park and cultural circulation, weekend leisure use, and late-evening central activity.
 
-## Tech Stack
+The main deliverable is a single guided story page with a full-screen hero, scroll-driven text, a fixed map stage, inline evidence cards, and a final free-exploration section.
 
-- React
-- TypeScript
-- Vite
-- MapLibre GL
-- deck.gl
+## Current Version
 
-## Frontend Data Used By The Live Site
+- Default route: `/`
+- Canonical story route: `/map-review`
+- Public deployment branch: `main`
+- Current live commit: latest `main`
+- Team: Rong Zhao · Zhuohang Duan · Dailing Wu
 
-Only these frontend assets are required by the current site:
+There is no separate PR workflow required for the coursework submission. The public GitHub Pages site is deployed directly from `main` through GitHub Actions.
 
-- `public/data/flows_hourly.json`
-- `public/data/typical_week_story.json`
-- `public/data/london-boroughs.geojson`
-- `public/data/london-outline.geojson`
-- `public/data/cycle_infrastructure.geojson`
+## What The Site Shows
+
+- Inferred street-use route segments from hourly OD pairs.
+- Weekday and weekend time stops in a guided scrollytelling sequence.
+- Functional anchors and area labels for work, parks, leisure, and night-city contexts.
+- Compact evidence charts for selected story moments.
+- A free-exploration panel for profile, hour, and layer switching.
+- A Method and Credits appendix for data assumptions and modelling limits.
+
+## What The Route Layer Means
+
+The route layer is an inferred street-use allocation, not GPS traces. OD pairs are assigned to a simplified service-area street graph with a seeded stochastic multi-route model and distance-decay weighting.
+
+Route intensity uses one global visual scale across all time slices. This avoids late-night or low-demand hours appearing artificially strong simply because their own local maximum is small.
+
+## Frontend Data
+
+The live site uses prebuilt assets in `public/data/`, including:
+
+- `flows_hourly.json`
+- `typical_week_story.json`
+- `temporal_summary.json`
+- `regime_summary.json`
+- `stations.json`
+- `stations.geojson`
+- `route_flows.json`
+- `route_flows/*.json`
+- `london-boroughs.geojson`
+- `london-outline.geojson`
+- `service_greenspaces.geojson`
+
+The route-flow slices are stored in compact format to keep GitHub Pages loading practical while retaining all routed edges for display.
 
 ## Development
 
 ```bash
 npm install
-npm run dev -- --host 127.0.0.1 --port 4182
+npm run dev -- --host 127.0.0.1 --port 5174
+```
+
+Open:
+
+```text
+http://127.0.0.1:5174/
 ```
 
 ## Build
@@ -57,41 +78,37 @@ npm run dev -- --host 127.0.0.1 --port 4182
 npm run build
 ```
 
-## GitHub Pages Deployment
-
-This repo now includes a GitHub Pages workflow:
-
-- [.github/workflows/deploy-pages.yml](/Users/lemon/Desktop/viz_group_project/.github/workflows/deploy-pages.yml)
-
-What to do:
-
-1. Push the project to GitHub.
-2. Push either `main` or `codex/github-clean-v3`.
-3. In the GitHub repository settings, set **Pages** to use **GitHub Actions**.
-4. After the workflow finishes, GitHub will give you a public Pages URL.
-
-If you want the cleanest upload history, push:
-
-- `codex/github-clean-v3`
-
-That branch was created specifically for GitHub delivery without the earlier raw-data history.
-
 ## Data Rebuild
 
-If you want to rebuild the current story datasets:
+The checked-in site already includes the built frontend data. If the source data changes, rebuild in this order:
 
 ```bash
-npm run data:stations
+npm run data:build:stations
 npm run data:trips:annual
 npm run data:build:boroughs
 npm run data:build:story
 npm run data:build:hourly
+npm run data:build:temporal
+npm run data:build:regimes
+npm run data:fetch:street-network
+npm run data:fetch:greenspaces
+npm run data:build:route-flows
+npm run data:optimize:route-flows
+npm run build
 ```
+
+## Deployment
+
+GitHub Pages is deployed by `.github/workflows/deploy-pages.yml`.
+
+Deployment source:
+
+- branch: `main`
+- mode: GitHub Actions
+- output: `dist/`
+
+The workflow builds with Vite and publishes the generated static site to GitHub Pages.
 
 ## Repository Scope
 
-This repository has been trimmed to the current coursework version only.
-
-- old archive material should not remain part of the deliverable
-- the live project is the `v3` storytelling build on branch `codex/v3-visual-pivot`
-- raw source archives are not intended to stay in the final GitHub upload
+This repository is aligned around the final Carbon-style map story. `main` is the canonical submitted version and GitHub Pages deploys from that branch only.

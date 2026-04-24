@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      - codex/github-clean-v3
-      - codex/carbon-map-ui
   workflow_dispatch:
 
 permissions:
