@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { CompactFlow, CompactHotspot } from "../types/flows";
 
 export type HourlyFlow = CompactFlow;
@@ -118,14 +118,14 @@ export function useHourlyFlows(): HourlyFlowsState {
     };
   }, []);
 
-  function getProfile(id: string): HourlyProfile | null {
+  const getProfile = useCallback((id: string): HourlyProfile | null => {
     return data.profiles.find((profile) => profile.id === id) ?? null;
-  }
+  }, [data.profiles]);
 
-  function getSlice(profileId: string, hour: number): HourlySlice {
-    const profile = getProfile(profileId);
+  const getSlice = useCallback((profileId: string, hour: number): HourlySlice => {
+    const profile = data.profiles.find((candidate) => candidate.id === profileId) ?? null;
     return profile?.hourSlices.find((slice) => slice.hour === hour) ?? emptySlice;
-  }
+  }, [data.profiles]);
 
   return {
     profiles: data.profiles,

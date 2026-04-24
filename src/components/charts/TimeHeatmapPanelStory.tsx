@@ -5,6 +5,7 @@ type TimeHeatmapPanelStoryProps = {
   profile: StoryProfileSummary;
   colorScheme: ColorScheme;
   activeHour?: number;
+  dayCount?: number;
   title?: string;
   onHourClick?: (hour: number) => void;
 };
@@ -23,6 +24,7 @@ export function TimeHeatmapPanelStory({
   profile,
   colorScheme,
   activeHour,
+  dayCount = 1,
   title = "Hourly trip volume",
   onHourClick,
 }: TimeHeatmapPanelStoryProps) {
@@ -39,8 +41,12 @@ export function TimeHeatmapPanelStory({
   }
 
   // Find peak hour
-  const maxSlice = hourSlices.reduce((max, curr) => (curr.tripCount > max.tripCount ? curr : max), hourSlices[0]);
-  const maxValue = Math.max(...hourSlices.map((h) => h.tripCount), 1);
+  const normalizedSlices = hourSlices.map((slice) => ({
+    ...slice,
+    averageDailyTrips: slice.tripCount / Math.max(dayCount, 1),
+  }));
+  const maxSlice = normalizedSlices.reduce((max, curr) => (curr.averageDailyTrips > max.averageDailyTrips ? curr : max), normalizedSlices[0]);
+  const maxValue = Math.max(...normalizedSlices.map((h) => h.averageDailyTrips), 1);
 
   return (
     <div className="evidence-panel evidence-panel--visible">
@@ -48,9 +54,9 @@ export function TimeHeatmapPanelStory({
 
       {/* 24-hour bar chart */}
       <div className="hourly-bars">
-        {hourSlices.map((slice) => {
+        {normalizedSlices.map((slice) => {
           const isActive = slice.hour === activeHour;
-          const proportion = slice.tripCount / maxValue;
+          const proportion = slice.averageDailyTrips / maxValue;
           return (
             <div
               key={slice.hour}
@@ -60,7 +66,7 @@ export function TimeHeatmapPanelStory({
                 backgroundColor: isActive ? primaryColor : `rgba(${parseInt(primaryColor.slice(1, 3), 16)}, ${parseInt(primaryColor.slice(3, 5), 16)}, ${parseInt(primaryColor.slice(5, 7), 16)}, 0.5)`,
                 cursor: "pointer",
               }}
-              title={`${String(slice.hour).padStart(2, "0")}:00 — ${(slice.tripCount / 1000).toFixed(0)}K trips`}
+              title={`${String(slice.hour).padStart(2, "0")}:00 - ${Math.round(slice.averageDailyTrips).toLocaleString()} avg trips/day`}
               onClick={() => onHourClick?.(slice.hour)}
             />
           );
@@ -79,7 +85,7 @@ export function TimeHeatmapPanelStory({
       {/* Peak hour callout */}
       {maxSlice && (
         <div style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "var(--text-dim)" }}>
-          Peak: {String(maxSlice.hour).padStart(2, "0")}:00 ({(maxSlice.tripCount / 1000).toFixed(0)}K trips)
+          Peak: {String(maxSlice.hour).padStart(2, "0")}:00 ({Math.round(maxSlice.averageDailyTrips).toLocaleString()} avg trips/day)
         </div>
       )}
     </div>

@@ -26,6 +26,22 @@ export function LegendPanel({
 
   const primaryColor = getPrimaryColor(colorScheme);
 
+  if (viewMode === "routes") {
+    return (
+      <div className="legend-panel">
+        <p className="legend-title">Inferred Street Flow</p>
+        <div className="legend-item">
+          <span className="legend-label">Road width and color = average trips per profile day</span>
+        </div>
+        <div className="legend-item">
+          <span className="legend-label">Shortest-route inference from aggregated OD pairs, not GPS traces</span>
+        </div>
+        <div className="legend-scale" style={{ background: "linear-gradient(90deg, rgb(82, 120, 118), rgb(221, 196, 132))" }} />
+        <span style={{ fontSize: "0.75rem", color: "var(--text-dim)" }}>Lower &rarr; higher inferred flow</span>
+      </div>
+    );
+  }
+
   if (viewMode === "flows") {
     return (
       <div className="legend-panel">
@@ -46,8 +62,8 @@ export function LegendPanel({
     const metricLabel = {
       capacity: "Station capacity (docks)",
       annualTrips: "Annual trips",
-      weekdayAMTrips: "Weekday AM peak trips",
-      weekendMiddayTrips: "Weekend midday trips",
+      weekdayAMTrips: "Weekday selected-hour trips",
+      weekendMiddayTrips: "Weekend selected-hour trips",
       lowStressScore: "Low-stress score (%)",
       deficitClass: "Demand-support mismatch",
     }[stationMetric] || "Station metric";
@@ -113,7 +129,7 @@ export function LegendPanel({
           <span className="legend-label">Contours mark recurring centers of activity</span>
         </div>
         <div className="legend-item">
-          <span className="legend-label">Glow shows where the network expands outward</span>
+          <span className="legend-label">Glow shows where activity spreads outward</span>
         </div>
         <div className="legend-scale" style={{ background: `linear-gradient(90deg, #2a4a6a, ${primaryColor})` }} />
         <span style={{ fontSize: "0.75rem", color: "var(--text-dim)" }}>Low &rarr; High</span>

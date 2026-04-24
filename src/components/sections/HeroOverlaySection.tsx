@@ -32,17 +32,17 @@ export function HeroOverlaySection({
   return (
     <div className="hero-overlay" style={{ opacity }}>
       <div className="hero-overlay-inner">
-        <span className="hero-overlay-kicker">London Shared Bike Rhythms</span>
+        <span className="hero-overlay-kicker">London Bike Share Temporal Geography</span>
         <h1 className="hero-overlay-heading">
-          One network. Many temporal Londons.
+          How time shapes bike share use
         </h1>
         <p className="hero-overlay-subtitle">
-          We begin in the morning, follow the peak, and watch time redraw the geography of London&apos;s bike-share system.
+          Seasonal, weekly and hourly rhythms reveal different geographies of London bike-share trips.
         </p>
         <div className="hero-stat">
           {stationCount.toLocaleString()} stations · {boroughCount} boroughs · {(annualTrips / 1_000_000).toFixed(1)}M trips
         </div>
-        <div className="hero-overlay-note">Scroll to move from rhythm to geography, one recurring city at a time.</div>
+        <div className="hero-overlay-note">Scroll from demand envelope to daily routine and street-level flow.</div>
         <div className="scroll-indicator">↓</div>
       </div>
     </div>

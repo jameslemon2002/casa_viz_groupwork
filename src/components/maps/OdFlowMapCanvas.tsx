@@ -1,21 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
-import type { StyleSpecification } from "maplibre-gl";
+import type { FilterSpecification, StyleSpecification } from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { ContourLayer, HeatmapLayer } from "@deck.gl/aggregation-layers";
-import { ArcLayer, GeoJsonLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { ArcLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { CompactFlow, CompactHotspot } from "../../types/flows";
+import type { RouteFlowEdge } from "../../types/routeFlows";
 import type { StationInfraMetricRecord, StoryCameraPreset, StoryStationMetric } from "../../types/story";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 /* ── types ── */
 
-export type ViewMode = "flows" | "stations" | "hotspots" | "infrastructure";
+export type ViewMode = "routes" | "flows" | "stations" | "hotspots" | "infrastructure";
 export type ColorScheme = "cool" | "warm" | "purple";
+export type FunctionAnchorTone = "blue" | "green" | "orange" | "pink";
+export type FunctionAnchor = {
+  id: string;
+  lon: number;
+  lat: number;
+  label: string;
+  category?: string;
+  description?: string;
+  evidence?: string;
+  tone: FunctionAnchorTone;
+  weight?: number;
+};
+type RouteDisplayMode = "hierarchy" | "all";
 
 type Props = {
   flows: CompactFlow[];
   compareFlows?: CompactFlow[];
+  routeEdges?: RouteFlowEdge[];
   hotspots: CompactHotspot[];
   stations: StationInfraMetricRecord[];
   viewMode: ViewMode;
@@ -26,10 +41,18 @@ type Props = {
   compareFlowProfileId?: "weekdays" | "weekends" | null;
   interactive: boolean;
   globalFlowMax?: number; // if provided, arcs normalize against this instead of local max
+  routeFlowMax?: number;
+  onRouteHover?: (edge: RouteFlowEdge | null, position: { x: number; y: number } | null) => void;
   onStationHover?: (station: StationInfraMetricRecord | null, position: { x: number; y: number } | null) => void;
   stationFilter?: Set<string>; // active station categories for infrastructure view
   showParticles?: boolean;
   showContours?: boolean;
+  routeDisplayMode?: RouteDisplayMode;
+  focusBounds?: [[number, number], [number, number]] | null;
+  functionAnchors?: FunctionAnchor[];
+  onFunctionAnchorHover?: (anchor: FunctionAnchor | null, position: { x: number; y: number } | null) => void;
+  showContextWater?: boolean;
+  onMapReady?: (map: maplibregl.Map | null) => void;
 };
 
 /* ── constants ── */
@@ -38,20 +61,24 @@ const MIN_ZOOM = 8.1;
 const MAX_ZOOM = 14.2;
 
 const innerNetwork: [[number, number], [number, number]] = [[-0.255, 51.446], [0.026, 51.558]];
+const reviewFootprint: [[number, number], [number, number]] = [[-0.2246, 51.4571], [-0.011, 51.5457]];
 const westLeisure: [[number, number], [number, number]] = [[-0.225, 51.478], [-0.035, 51.545]];
 const citySpine: [[number, number], [number, number]] = [[-0.155, 51.488], [-0.045, 51.528]];
+const waterAreaFilter = ["==", ["get", "layer"], "water-area"] as FilterSpecification;
+const riverLineFilter = ["==", ["get", "layer"], "river-line"] as FilterSpecification;
 
 type CamDef = { bounds: [[number, number], [number, number]]; pitch: number; bearing: number; maxZoom?: number };
 
 const cameras: Record<StoryCameraPreset, CamDef> = {
-  hero:           { bounds: innerNetwork, pitch: 54, bearing: -16, maxZoom: 11.2 },
-  network:        { bounds: innerNetwork, pitch: 40, bearing: -10, maxZoom: 11.0 },
-  rhythm:         { bounds: innerNetwork, pitch: 48, bearing: -14, maxZoom: 11.1 },
-  commute:        { bounds: citySpine, pitch: 58, bearing: -18, maxZoom: 12.4 },
-  weekend:        { bounds: westLeisure, pitch: 50, bearing: -8, maxZoom: 11.6 },
-  spatial:        { bounds: innerNetwork, pitch: 34, bearing: -8, maxZoom: 11.0 },
-  infrastructure: { bounds: innerNetwork, pitch: 32, bearing: -10, maxZoom: 10.9 },
-  conclusion:     { bounds: innerNetwork, pitch: 42, bearing: -12, maxZoom: 11.0 },
+  hero:           { bounds: innerNetwork, pitch: 0, bearing: 0, maxZoom: 11.0 },
+  network:        { bounds: innerNetwork, pitch: 0, bearing: 0, maxZoom: 11.0 },
+  review:         { bounds: reviewFootprint, pitch: 0, bearing: 0, maxZoom: 11.8 },
+  rhythm:         { bounds: innerNetwork, pitch: 0, bearing: 0, maxZoom: 11.1 },
+  commute:        { bounds: citySpine, pitch: 0, bearing: 0, maxZoom: 12.0 },
+  weekend:        { bounds: westLeisure, pitch: 0, bearing: 0, maxZoom: 11.4 },
+  spatial:        { bounds: innerNetwork, pitch: 0, bearing: 0, maxZoom: 11.0 },
+  infrastructure: { bounds: innerNetwork, pitch: 0, bearing: 0, maxZoom: 10.9 },
+  conclusion:     { bounds: innerNetwork, pitch: 0, bearing: 0, maxZoom: 11.0 },
 };
 
 function getCameraPadding(cameraPreset: StoryCameraPreset, width: number, height: number) {
@@ -66,6 +93,24 @@ function getCameraPadding(cameraPreset: StoryCameraPreset, width: number, height
       right: 52,
       bottom: Math.max(64, Math.round(height * 0.18)),
       left: Math.min(Math.max(Math.round(width * 0.18), 180), 300),
+    };
+  }
+
+  if (cameraPreset === "review") {
+    if (width < 900) {
+      return {
+        top: 24,
+        right: 24,
+        bottom: Math.max(180, Math.round(height * 0.28)),
+        left: 24,
+      };
+    }
+
+    return {
+      top: 44,
+      right: 44,
+      left: 44,
+      bottom: 132,
     };
   }
 
@@ -96,18 +141,27 @@ const basemapStyle: StyleSpecification = {
       attribution: "&copy; OSM &copy; CARTO",
     },
   },
-  layers: [{
-    id: "basemap",
-    type: "raster",
-    source: "cartoDark",
-    paint: {
-      "raster-opacity": 0.94,
-      "raster-contrast": 0.24,
-      "raster-saturation": -0.48,
-      "raster-brightness-max": 0.8,
-      "raster-brightness-min": 0.04,
+  layers: [
+    {
+      id: "map-background",
+      type: "background",
+      paint: {
+        "background-color": "#3a4861",
+      },
     },
-  }],
+    {
+      id: "basemap",
+      type: "raster",
+      source: "cartoDark",
+      paint: {
+        "raster-opacity": 0.78,
+        "raster-contrast": 0.08,
+        "raster-saturation": -0.24,
+        "raster-brightness-max": 0.9,
+        "raster-brightness-min": 0.34,
+      },
+    },
+  ],
 };
 
 /* ── colour palettes ── */
@@ -124,12 +178,12 @@ const palettes: Record<ColorScheme, {
     dst: (r) => [200 + r * 55, 230 + r * 25, 255],        // white-blue at destination
   },
   warm: {
-    src: (r) => [255, 140 + r * 60, 60 + r * 40],         // vivid orange
-    dst: (r) => [255, 200 + r * 40, 140 + r * 40],        // warm peach-white
+    src: (r) => [58 + r * 30, 186 + r * 36, 122 + r * 34],
+    dst: (r) => [156 + r * 30, 246, 194 + r * 16],
   },
   purple: {
-    src: (r) => [120 + r * 40, 80 + r * 20, 220 + r * 35],
-    dst: (r) => [90 + r * 60, 90 + r * 40, 240],
+    src: (r) => [190 + r * 36, 72 + r * 28, 164 + r * 24],
+    dst: (r) => [255, 156 + r * 36, 220 + r * 18],
   },
 };
 
@@ -142,8 +196,8 @@ const profilePalettes: Record<"weekdays" | "weekends", {
     dst: (r) => [208 + r * 35, 236 + r * 12, 255],
   },
   weekends: {
-    src: (r) => [230 + r * 25, 170 + r * 45, 64 + r * 28],
-    dst: (r) => [255, 226 + r * 16, 154 + r * 26],
+    src: (r) => [68 + r * 34, 186 + r * 36, 122 + r * 32],
+    dst: (r) => [182 + r * 20, 242, 204 + r * 12],
   },
 };
 
@@ -159,6 +213,21 @@ function paletteForFlowProfile(
 
 function rgba(rgb: [number, number, number], a: number): RGBA {
   return [Math.round(rgb[0]), Math.round(rgb[1]), Math.round(rgb[2]), Math.round(a)];
+}
+
+const unifiedRoutePalette = {
+  route: [103, 207, 255] as [number, number, number],
+  routeLight: [226, 247, 255] as [number, number, number],
+  anchor: [103, 207, 255] as [number, number, number],
+};
+
+function mixRgb(left: [number, number, number], right: [number, number, number], ratio: number): [number, number, number] {
+  const t = clamp01(ratio);
+  return [
+    left[0] + (right[0] - left[0]) * t,
+    left[1] + (right[1] - left[1]) * t,
+    left[2] + (right[2] - left[2]) * t,
+  ];
 }
 
 function metricVal(s: StationInfraMetricRecord, m: StoryStationMetric) {
@@ -208,19 +277,56 @@ function stationColor(s: StationInfraMetricRecord, m: StoryStationMetric): RGBA 
   return [150, 218, 255, 185];
 }
 
-function infraColor(cat: string): RGBA {
-  if (cat === "protected") return [100, 230, 255, 155];
-  if (cat === "quiet") return [180, 238, 255, 145];
-  if (cat === "painted") return [80, 160, 255, 105];
-  return [70, 105, 140, 70];
-}
-
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
 }
 
 function flowStrength(flow: CompactFlow, flowMax: number) {
   return Math.sqrt(clamp01(flow.count / flowMax));
+}
+
+function routeStrength(edge: RouteFlowEdge, routeMax: number) {
+  return Math.sqrt(clamp01(edge.averageDailyTrips / routeMax));
+}
+
+function editorialRouteColor(edge: RouteFlowEdge, routeMax: number, _colorScheme: ColorScheme): RGBA {
+  const strength = routeStrength(edge, routeMax);
+  const palette = unifiedRoutePalette;
+  return rgba(mixRgb(palette.route, palette.routeLight, 0.18 + strength * 0.68), 112 + Math.round(strength * 80));
+}
+
+function editorialRouteHalo(edge: RouteFlowEdge, routeMax: number): RGBA {
+  const strength = routeStrength(edge, routeMax);
+  return [235, 248, 255, 44 + Math.round(strength * 68)] as RGBA;
+}
+
+function editorialRouteContext(edge: RouteFlowEdge, routeMax: number): RGBA {
+  const strength = routeStrength(edge, routeMax);
+  return [118, 145, 178, 18 + Math.round(strength * 28)] as RGBA;
+}
+
+function routeCssColor(_colorScheme: ColorScheme) {
+  const [red, green, blue] = unifiedRoutePalette.route;
+  return `rgb(${red}, ${green}, ${blue})`;
+}
+
+function functionAnchorColors(tone: FunctionAnchorTone) {
+  if (tone === "green") {
+    return [86, 211, 142, 156] as RGBA;
+  }
+  if (tone === "orange") {
+    return [242, 176, 126, 152] as RGBA;
+  }
+  if (tone === "pink") {
+    return [226, 78, 179, 156] as RGBA;
+  }
+  return [92, 149, 255, 156] as RGBA;
+}
+
+function quantileOfSorted(values: number[], ratio: number) {
+  if (values.length === 0) return 0;
+  const index = Math.min(values.length - 1, Math.max(0, Math.floor((values.length - 1) * ratio)));
+  return values[index];
 }
 
 function arcHeight(cameraPreset: StoryCameraPreset, strength: number) {
@@ -261,8 +367,14 @@ function interpolateParticle(flow: CompactFlow, t: number, laneOffset: number) {
 /* ── component ── */
 
 export function OdFlowMapCanvas({
-  flows, compareFlows = [], hotspots, stations, viewMode, stationMetric, cameraPreset, colorScheme, activeFlowProfileId = "all", compareFlowProfileId = null, interactive, globalFlowMax, onStationHover, stationFilter,
+  flows, compareFlows = [], routeEdges = [], hotspots, stations, viewMode, stationMetric, cameraPreset, colorScheme, activeFlowProfileId = "all", compareFlowProfileId = null, interactive, globalFlowMax, routeFlowMax, onRouteHover, onStationHover, stationFilter,
   showParticles = false, showContours = false,
+  routeDisplayMode = "hierarchy",
+  focusBounds = null,
+  functionAnchors = [],
+  onFunctionAnchorHover,
+  showContextWater = false,
+  onMapReady,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -273,6 +385,8 @@ export function OdFlowMapCanvas({
 
   const localFlowMax = useMemo(() => Math.max(...flows.map((f) => f.count), 1), [flows]);
   const flowMax = globalFlowMax && globalFlowMax > 0 ? globalFlowMax : localFlowMax;
+  const localRouteMax = useMemo(() => Math.max(...routeEdges.map((edge) => edge.averageDailyTrips), 1), [routeEdges]);
+  const resolvedRouteMax = routeFlowMax && routeFlowMax > 0 ? routeFlowMax : localRouteMax;
   const hotMax = useMemo(() => Math.max(...hotspots.map((h) => h.act), 1), [hotspots]);
   const stnMax = useMemo(
     () => Math.max(...stations.map((s) => metricVal(s, stationMetric)), 1),
@@ -280,7 +394,28 @@ export function OdFlowMapCanvas({
   );
   const sortedFlows = useMemo(() => [...flows].sort((a, b) => a.count - b.count), [flows]);
   const sortedCompareFlows = useMemo(() => [...compareFlows].sort((a, b) => a.count - b.count), [compareFlows]);
-
+  const sortedRouteEdges = useMemo(() => [...routeEdges].sort((a, b) => a.averageDailyTrips - b.averageDailyTrips), [routeEdges]);
+  const sortedRouteValues = useMemo(() => sortedRouteEdges.map((edge) => edge.averageDailyTrips), [sortedRouteEdges]);
+  const routeContextCutoff = useMemo(() => Math.max(quantileOfSorted(sortedRouteValues, 0.5), 0.05), [sortedRouteValues]);
+  const routeSupportCutoff = useMemo(() => Math.max(quantileOfSorted(sortedRouteValues, 0.74), 0.1), [sortedRouteValues]);
+  const routeFocusCutoff = useMemo(() => Math.max(quantileOfSorted(sortedRouteValues, 0.88), 0.16), [sortedRouteValues]);
+  const routeAccentCutoff = useMemo(() => Math.max(quantileOfSorted(sortedRouteValues, 0.96), 0.28), [sortedRouteValues]);
+  const contextRouteEdges = useMemo(
+    () => sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeContextCutoff),
+    [routeContextCutoff, sortedRouteEdges],
+  );
+  const supportRouteEdges = useMemo(
+    () => sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeSupportCutoff),
+    [routeSupportCutoff, sortedRouteEdges],
+  );
+  const focusRouteEdges = useMemo(
+    () => sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeFocusCutoff),
+    [routeFocusCutoff, sortedRouteEdges],
+  );
+  const accentRouteEdges = useMemo(
+    () => sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeAccentCutoff),
+    [routeAccentCutoff, sortedRouteEdges],
+  );
   useEffect(() => {
     if (!showParticles) return undefined;
 
@@ -298,13 +433,12 @@ export function OdFlowMapCanvas({
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: basemapStyle,
-      center: [-0.11, 51.505],
-      zoom: 9.5,
+      center: [-0.105, 51.508],
+      zoom: 11.2,
       minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM,
       pitch: cameras.hero.pitch,
       bearing: cameras.hero.bearing,
-      attributionControl: false,
     });
 
     map.scrollZoom.disable();
@@ -313,6 +447,9 @@ export function OdFlowMapCanvas({
     map.dragPan.disable();
     map.dragRotate.disable();
     mapRef.current = map;
+    if (import.meta.env.DEV) {
+      (window as unknown as { __bikeMap?: maplibregl.Map }).__bikeMap = map;
+    }
 
     map.on("load", () => {
       map.addSource("boroughs", {
@@ -323,42 +460,118 @@ export function OdFlowMapCanvas({
         type: "geojson",
         data: `${import.meta.env.BASE_URL}data/london-outline.geojson`,
       });
+      if (showContextWater) {
+        map.addSource("context-water", {
+          type: "geojson",
+          data: `${import.meta.env.BASE_URL}data/service_water.geojson`,
+        });
+      }
 
       map.addLayer({
-        id: "borough-fill", type: "fill", source: "boroughs",
-        paint: { "fill-color": "#08131d", "fill-opacity": 0.22 },
+        id: "borough-mask", type: "fill", source: "boroughs",
+        paint: { "fill-color": "#2b3448", "fill-opacity": 0 },
       });
+      map.addLayer({
+        id: "borough-fill", type: "fill", source: "boroughs",
+        paint: { "fill-color": "#46536f", "fill-opacity": 0 },
+      });
+      if (showContextWater) {
+        map.addLayer({
+          id: "context-water-area",
+          type: "fill",
+          source: "context-water",
+          filter: waterAreaFilter,
+          paint: {
+            "fill-color": "#75cfff",
+            "fill-opacity": 0.11,
+            "fill-outline-color": "rgba(178, 226, 255, 0.17)",
+          },
+        });
+        map.addLayer({
+          id: "context-water-line",
+          type: "line",
+          source: "context-water",
+          filter: riverLineFilter,
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": "#6bb9e9",
+            "line-opacity": 0.16,
+            "line-width": ["interpolate", ["linear"], ["zoom"], 9, 5.5, 11.5, 16],
+            "line-blur": 1.4,
+          },
+        });
+      }
       map.addLayer({
         id: "borough-line", type: "line", source: "boroughs",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "rgba(172,208,246,0.22)",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 8.5, 0.55, 12, 1.4],
+          "line-color": "rgba(181,198,224,0.18)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8.5, 0.45, 12, 0.82],
+        },
+      });
+      map.addLayer({
+        id: "borough-active-outline", type: "line", source: "boroughs",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "rgba(214,231,255,0.22)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8.5, 0.62, 12, 0.94],
+          "line-blur": 0.08,
         },
       });
       map.addLayer({
         id: "outline-glow", type: "line", source: "outline",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "rgba(86,188,255,0.34)",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 8.5, 7, 12, 12],
-          "line-blur": 5,
+          "line-color": "rgba(170,194,235,0.05)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8.5, 0.9, 12, 1.45],
+          "line-blur": 1.05,
         },
       });
       map.addLayer({
         id: "outline-stroke", type: "line", source: "outline",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "rgba(228,242,255,0.88)",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 8.5, 1.5, 12, 2.8],
+          "line-color": "rgba(128,145,178,0.12)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8.5, 0.34, 12, 0.58],
         },
       });
+      try {
+        map.addSource("route-flow", {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+        map.addLayer({
+          id: "route-flow-native-halo",
+          type: "line",
+          source: "route-flow",
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": "rgba(255,255,250,0.78)",
+            "line-opacity": 0,
+            "line-width": 7,
+          },
+        });
+        map.addLayer({
+          id: "route-flow-native-core",
+          type: "line",
+          source: "route-flow",
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": "#1f745e",
+            "line-opacity": 0,
+            "line-width": 3.8,
+          },
+        });
+      } catch (error) {
+        console.warn("Route-flow native layer failed to initialise", error);
+      }
 
       const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
       map.addControl(overlay as unknown as maplibregl.IControl);
       overlayRef.current = overlay;
       mapLoadedRef.current = true;
       setMapReady(true);
+      onMapReady?.(map);
     });
 
     return () => {
@@ -368,8 +581,9 @@ export function OdFlowMapCanvas({
       overlayRef.current = null;
       mapRef.current = null;
       mapLoadedRef.current = false;
+      onMapReady?.(null);
     };
-  }, []);
+  }, [onMapReady, showContextWater]);
 
   /* ── camera changes ── */
   useEffect(() => {
@@ -387,9 +601,10 @@ export function OdFlowMapCanvas({
     }
 
     const cam = cameras[cameraPreset];
+    const bounds = focusBounds ?? cam.bounds;
     const viewportWidth = containerRef.current?.clientWidth ?? window.innerWidth;
     const viewportHeight = containerRef.current?.clientHeight ?? window.innerHeight;
-    const resolved = map.cameraForBounds(cam.bounds, {
+    const resolved = map.cameraForBounds(bounds, {
       padding: getCameraPadding(cameraPreset, viewportWidth, viewportHeight),
       maxZoom: cam.maxZoom ?? MAX_ZOOM,
     });
@@ -402,18 +617,65 @@ export function OdFlowMapCanvas({
         essential: true,
       });
     }
-  }, [cameraPreset, interactive, mapReady]);
+  }, [cameraPreset, focusBounds, interactive, mapReady]);
 
   /* ── deck layers ── */
-  const showArcs = viewMode === "flows" || viewMode === "infrastructure";
-  const showStations = viewMode === "stations" || viewMode === "infrastructure";
+  const showRoutes = viewMode === "routes";
+  const showArcs = viewMode === "flows";
+  const showAllRouteEdges = showRoutes && routeDisplayMode === "all";
+  const showStationMetric = viewMode === "stations" || viewMode === "infrastructure";
+  const showStations = showStationMetric;
   const showHotspots = viewMode === "hotspots";
   const showInfra = viewMode === "infrastructure";
-  const showInfraLines = false; // DISABLED: infrastructure GeoJSON too confusing
   const infraDim = showInfra ? 0.72 : 1;
   const activeFlowPalette = paletteForFlowProfile(activeFlowProfileId, colorScheme);
   const compareFlowPalette = paletteForFlowProfile(compareFlowProfileId, colorScheme);
   const showCompareFlows = showArcs && compareFlowProfileId !== null && sortedCompareFlows.length > 0;
+  const serviceBoroughCodes = useMemo(
+    () => [...new Set(stations.map((station) => station.boroughCode).filter((value): value is string => Boolean(value)))],
+    [stations],
+  );
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+
+    const source = mapRef.current.getSource("route-flow") as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+
+    if (mapRef.current.getLayer("route-flow-native-core")) {
+      mapRef.current.setPaintProperty("route-flow-native-core", "line-color", routeCssColor(colorScheme));
+    }
+
+    if (import.meta.env.DEV) {
+      (window as unknown as { __routeEdgeCount?: number }).__routeEdgeCount = focusRouteEdges.length;
+    }
+
+    source.setData({
+      type: "FeatureCollection",
+      features: [],
+    });
+  }, [colorScheme, focusRouteEdges.length, mapReady, showRoutes]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || serviceBoroughCodes.length === 0) return;
+
+    const activeFilter = ["in", "gss_code", ...serviceBoroughCodes] as unknown as FilterSpecification;
+    const inactiveFilter = ["!in", "gss_code", ...serviceBoroughCodes] as unknown as FilterSpecification;
+
+    if (map.getLayer("borough-mask")) {
+      map.setFilter("borough-mask", inactiveFilter);
+    }
+    if (map.getLayer("borough-fill")) {
+      map.setFilter("borough-fill", activeFilter);
+    }
+    if (map.getLayer("borough-line")) {
+      map.setFilter("borough-line", null);
+    }
+    if (map.getLayer("borough-active-outline")) {
+      map.setFilter("borough-active-outline", activeFilter);
+    }
+  }, [mapReady, serviceBoroughCodes]);
 
   const particlePoints = useMemo(() => {
     if (!showParticles || sortedFlows.length === 0) return [];
@@ -450,34 +712,206 @@ export function OdFlowMapCanvas({
     [hotMax],
   );
 
+  const showcaseFlows = useMemo(() => {
+    if (!showRoutes || sortedFlows.length === 0) return [];
+    return sortedFlows.filter((flow) => flow.oName !== flow.dName || flow.oLon !== flow.dLon || flow.oLat !== flow.dLat);
+  }, [showRoutes, sortedFlows]);
+
+  const showcaseFlowMax = useMemo(() => Math.max(...showcaseFlows.map((flow) => flow.count), 1), [showcaseFlows]);
+  const anchorTotals = useMemo(() => {
+    const origins = new Map<string, { lon: number; lat: number; name: string; count: number }>();
+    const destinations = new Map<string, { lon: number; lat: number; name: string; count: number }>();
+
+    for (const flow of showcaseFlows) {
+      const origin = origins.get(flow.oName) ?? { lon: flow.oLon, lat: flow.oLat, name: flow.oName, count: 0 };
+      origin.count += flow.count;
+      origins.set(flow.oName, origin);
+
+      const destination = destinations.get(flow.dName) ?? { lon: flow.dLon, lat: flow.dLat, name: flow.dName, count: 0 };
+      destination.count += flow.count;
+      destinations.set(flow.dName, destination);
+    }
+
+    return {
+      origins: [...origins.values()].sort((left, right) => left.count - right.count),
+      destinations: [...destinations.values()].sort((left, right) => left.count - right.count),
+    };
+  }, [showcaseFlows]);
+  const anchorMax = useMemo(
+    () => Math.max(...anchorTotals.origins.map((anchor) => anchor.count), ...anchorTotals.destinations.map((anchor) => anchor.count), 1),
+    [anchorTotals.destinations, anchorTotals.origins],
+  );
+  const routePalette = unifiedRoutePalette;
+
   const layers = useMemo(
     () => [
-      new GeoJsonLayer({
-        id: "infra",
-        data: `${import.meta.env.BASE_URL}data/cycle_infrastructure.geojson`,
-        visible: showInfraLines,
+      new PathLayer<RouteFlowEdge>({
+        id: "route-flow-context",
+        data: showAllRouteEdges ? sortedRouteEdges : contextRouteEdges,
+        visible: showRoutes && (showAllRouteEdges ? sortedRouteEdges.length > 0 : contextRouteEdges.length > 0),
         pickable: false,
+        widthUnits: "pixels" as const,
+        widthMinPixels: 1,
+        widthMaxPixels: 7,
+        jointRounded: true,
+        capRounded: true,
+        getPath: (edge) => edge.coordinates,
+        getWidth: (edge) => showAllRouteEdges ? 0.62 + routeStrength(edge, resolvedRouteMax) * 0.55 : 0.8 + routeStrength(edge, resolvedRouteMax) * 3.2,
+        getColor: (edge) => showAllRouteEdges
+          ? rgba(routePalette.routeLight, 18 + Math.round(Math.sqrt(clamp01(edge.averageDailyTrips / resolvedRouteMax)) * 52))
+          : editorialRouteContext(edge, resolvedRouteMax),
+        opacity: showAllRouteEdges ? 0.96 : 0.84,
+      }),
+
+      new PathLayer<RouteFlowEdge>({
+        id: "route-flow-support",
+        data: showAllRouteEdges ? sortedRouteEdges : supportRouteEdges,
+        visible: showRoutes && (showAllRouteEdges ? sortedRouteEdges.length > 0 : supportRouteEdges.length > 0),
+        pickable: false,
+        widthUnits: "pixels" as const,
+        widthMinPixels: 1,
+        widthMaxPixels: 8,
+        jointRounded: true,
+        capRounded: true,
+        getPath: (edge) => edge.coordinates,
+        getWidth: (edge) => showAllRouteEdges ? 0.72 + routeStrength(edge, resolvedRouteMax) * 0.75 : 0.95 + routeStrength(edge, resolvedRouteMax) * 4.6,
+        getColor: (edge) => showAllRouteEdges
+          ? rgba(routePalette.route, 16 + Math.round(Math.sqrt(clamp01(edge.averageDailyTrips / resolvedRouteMax)) * 84))
+          : rgba(routePalette.routeLight, 42 + Math.round(routeStrength(edge, resolvedRouteMax) * 34)),
+        opacity: showAllRouteEdges ? 0.88 : 0.46,
+      }),
+
+      new PathLayer<RouteFlowEdge>({
+        id: "route-flow-halo",
+        data: showAllRouteEdges ? accentRouteEdges : focusRouteEdges,
+        visible: showRoutes && (showAllRouteEdges ? accentRouteEdges.length > 0 : focusRouteEdges.length > 0),
+        pickable: false,
+        widthUnits: "pixels" as const,
+        widthMinPixels: 2,
+        widthMaxPixels: 15,
+        jointRounded: true,
+        capRounded: true,
+        getPath: (edge) => edge.coordinates,
+        getWidth: (edge) => showAllRouteEdges ? 1.15 + routeStrength(edge, resolvedRouteMax) * 0.95 : 2.2 + routeStrength(edge, resolvedRouteMax) * 10.5,
+        getColor: (edge) => editorialRouteHalo(edge, resolvedRouteMax),
+        opacity: showAllRouteEdges ? 0.38 : 0.92,
+      }),
+
+      new PathLayer<RouteFlowEdge>({
+        id: "route-flow-streets",
+        data: showAllRouteEdges ? accentRouteEdges : focusRouteEdges,
+        visible: showRoutes && (showAllRouteEdges ? accentRouteEdges.length > 0 : focusRouteEdges.length > 0),
+        pickable: showRoutes,
+        widthUnits: "pixels" as const,
+        widthMinPixels: 1,
+        widthMaxPixels: 9,
+        jointRounded: true,
+        capRounded: true,
+        getPath: (edge) => edge.coordinates,
+        getWidth: (edge) => showAllRouteEdges ? 0.95 + routeStrength(edge, resolvedRouteMax) * 1.1 : 0.95 + routeStrength(edge, resolvedRouteMax) * 6.9,
+        getColor: (edge) => editorialRouteColor(edge, resolvedRouteMax, colorScheme),
+        opacity: 0.98,
+        onHover: (info: { object?: RouteFlowEdge; x?: number; y?: number }) => {
+          if (!onRouteHover) return;
+          if (info.object && info.x !== undefined && info.y !== undefined) {
+            onRouteHover(info.object, { x: info.x, y: info.y });
+          } else {
+            onRouteHover(null, null);
+          }
+        },
+      }),
+
+      new ArcLayer<CompactFlow>({
+        id: "route-od-connectors",
+        data: showcaseFlows,
+        visible: showRoutes && showcaseFlows.length > 0,
+        pickable: false,
+        greatCircle: false,
+        getSourcePosition: (flow) => [flow.oLon, flow.oLat],
+        getTargetPosition: (flow) => [flow.dLon, flow.dLat],
+        getWidth: (flow) => 0.45 + Math.sqrt(clamp01(flow.count / showcaseFlowMax)) * 0.35,
+        getHeight: (flow) => 0.08 + Math.sqrt(clamp01(flow.count / showcaseFlowMax)) * 0.12,
+        widthUnits: "pixels" as const,
+        getSourceColor: (flow) => rgba(routePalette.routeLight, 34 + Math.round(Math.sqrt(clamp01(flow.count / showcaseFlowMax)) * 28)),
+        getTargetColor: (flow) => rgba(routePalette.routeLight, 40 + Math.round(Math.sqrt(clamp01(flow.count / showcaseFlowMax)) * 36)),
+        opacity: 0.62,
+      }),
+
+      new ScatterplotLayer({
+        id: "route-origin-anchors",
+        data: anchorTotals.origins,
+        visible: showRoutes && anchorTotals.origins.length > 0,
+        pickable: false,
+        radiusUnits: "pixels" as const,
+        radiusMinPixels: 3,
+        radiusMaxPixels: 9,
+        stroked: true,
+        lineWidthMinPixels: 1.2,
+        getPosition: (anchor: { lon: number; lat: number }) => [anchor.lon, anchor.lat],
+        getRadius: (anchor: { count: number }) => 2.8 + Math.sqrt(clamp01(anchor.count / anchorMax)) * 5.2,
+        getFillColor: [255, 255, 255, 228] as RGBA,
+        getLineColor: rgba(routePalette.anchor, 232),
         parameters: { depthTest: false },
-        lineWidthUnits: "pixels" as const,
+      }),
+
+      new ScatterplotLayer({
+        id: "route-destination-anchors",
+        data: anchorTotals.destinations,
+        visible: showRoutes && anchorTotals.destinations.length > 0,
+        pickable: false,
+        radiusUnits: "pixels" as const,
+        radiusMinPixels: 3,
+        radiusMaxPixels: 11,
+        stroked: true,
         lineWidthMinPixels: 1,
-        getLineWidth: (f: { properties?: { category?: string } }) =>
-          f.properties?.category === "protected" || f.properties?.category === "quiet" ? 2.4 : 1.2,
-        getLineColor: (f: { properties?: { category?: string } }) =>
-          infraColor(f.properties?.category ?? ""),
-        opacity: 0.82,
+        getPosition: (anchor: { lon: number; lat: number }) => [anchor.lon, anchor.lat],
+        getRadius: (anchor: { count: number }) => 3.3 + Math.sqrt(clamp01(anchor.count / anchorMax)) * 6.8,
+        getFillColor: rgba(routePalette.route, 232),
+        getLineColor: [255, 255, 255, 240] as RGBA,
+        parameters: { depthTest: false },
+      }),
+
+      new ScatterplotLayer<FunctionAnchor>({
+        id: "function-anchor-core",
+        data: functionAnchors,
+        visible: showRoutes && functionAnchors.length > 0,
+        pickable: true,
+        radiusUnits: "pixels" as const,
+        radiusMinPixels: 4,
+        radiusMaxPixels: 18,
+        stroked: false,
+        getPosition: (anchor) => [anchor.lon, anchor.lat],
+        getRadius: (anchor) => 5.2 + (anchor.weight ?? 1) * 5.6,
+        getFillColor: (anchor) => functionAnchorColors(anchor.tone),
+        onHover: (info: { object?: FunctionAnchor; x?: number; y?: number }) => {
+          if (!onFunctionAnchorHover) return;
+          if (info.object && info.x !== undefined && info.y !== undefined) {
+            onFunctionAnchorHover(info.object, { x: info.x, y: info.y });
+          } else {
+            onFunctionAnchorHover(null, null);
+          }
+        },
       }),
 
       new ScatterplotLayer({
         id: "stn-bg",
         data: stations,
-        visible: showStations || showHotspots,
+        visible: showRoutes || showStations || showHotspots,
         pickable: false,
         radiusUnits: "pixels" as const,
         radiusMinPixels: 1,
-        radiusMaxPixels: 3,
+        radiusMaxPixels: 5,
         getPosition: (s: StationInfraMetricRecord) => [s.lon, s.lat],
-        getRadius: 1.4,
-        getFillColor: [200, 220, 240, 44] as RGBA,
+        getRadius: showRoutes
+          ? sortedRouteEdges.length === 0 && sortedFlows.length === 0
+            ? 2.3
+            : 1.2
+          : 1.4,
+        getFillColor: showRoutes
+          ? sortedRouteEdges.length === 0 && sortedFlows.length === 0
+            ? [116, 191, 255, 138] as RGBA
+            : [146, 185, 255, 36] as RGBA
+          : [200, 220, 240, 44] as RGBA,
         parameters: { depthTest: false },
       }),
 
@@ -646,14 +1080,14 @@ export function OdFlowMapCanvas({
         intensity: 1.2,
         threshold: 0.04,
         colorRange: [
-          [0, 25, 80, 160],     // deep navy
-          [0, 100, 200, 180],   // blue
-          [0, 200, 180, 190],   // cyan-teal
-          [120, 230, 80, 200],  // green-yellow
-          [255, 200, 0, 220],   // amber
-          [255, 80, 20, 240],   // red-orange
+          [16, 28, 88, 140],
+          [0, 116, 255, 170],
+          [0, 229, 255, 188],
+          [143, 118, 255, 206],
+          [255, 78, 196, 226],
+          [255, 208, 74, 245],
         ],
-        opacity: 0.75,
+        opacity: 0.88,
       }),
 
       new ScatterplotLayer({
@@ -662,12 +1096,15 @@ export function OdFlowMapCanvas({
         visible: showStations,
         pickable: showStations,
         radiusUnits: "pixels" as const,
-        radiusMinPixels: showInfra ? 5 : 3,
-        radiusMaxPixels: showInfra ? 14 : 20,
+        radiusMinPixels: showRoutes ? 1.4 : showInfra ? 5 : 3,
+        radiusMaxPixels: showRoutes ? 3.2 : showInfra ? 14 : 20,
         stroked: true,
         lineWidthMinPixels: showInfra ? 0.5 : 1,
         getPosition: (s: StationInfraMetricRecord) => [s.lon, s.lat],
         getRadius: (s: StationInfraMetricRecord) => {
+          if (showRoutes) {
+            return 1.8;
+          }
           if (showInfra && stationFilter && !stationFilter.has(s.deficitClass)) {
             return 2; // shrink filtered-out stations
           }
@@ -676,13 +1113,16 @@ export function OdFlowMapCanvas({
             : 4 + (metricVal(s, stationMetric) / stnMax) * 12;
         },
         getFillColor: (s: StationInfraMetricRecord) => {
+          if (showRoutes) {
+            return [224, 236, 220, 62] as RGBA;
+          }
           const baseColor = stationColor(s, stationMetric);
           if (stationMetric === "deficitClass" && stationFilter && !stationFilter.has(s.deficitClass)) {
             return [baseColor[0], baseColor[1], baseColor[2], 0] as RGBA; // invisible
           }
           return baseColor;
         },
-        getLineColor: showInfra ? [10, 15, 25, 120] as RGBA : [230, 244, 255, 180] as RGBA,
+        getLineColor: showRoutes ? [10, 15, 18, 70] as RGBA : showInfra ? [10, 15, 25, 120] as RGBA : [230, 244, 255, 180] as RGBA,
         parameters: { depthTest: false },
         onHover: (info: { object?: StationInfraMetricRecord; x?: number; y?: number }) => {
           if (onStationHover) {
@@ -695,7 +1135,7 @@ export function OdFlowMapCanvas({
         },
       }),
     ],
-    [sortedFlows, sortedCompareFlows, flowMax, hotspots, hotMax, stations, stnMax, stationMetric, showArcs, showCompareFlows, showStations, showHotspots, showInfra, infraDim, activeFlowPalette, compareFlowPalette, onStationHover, stationFilter, particlePoints, showParticles, showContours, contourLevels, cameraPreset],
+    [accentRouteEdges, activeFlowPalette, anchorMax, anchorTotals.destinations, anchorTotals.origins, cameraPreset, colorScheme, compareFlowPalette, contextRouteEdges, contourLevels, flowMax, focusRouteEdges, functionAnchors, hotMax, hotspots, infraDim, onFunctionAnchorHover, onRouteHover, onStationHover, particlePoints, resolvedRouteMax, routeDisplayMode, routePalette.anchor, routePalette.route, routePalette.routeLight, showcaseFlowMax, showcaseFlows, showAllRouteEdges, showArcs, showCompareFlows, showContours, showHotspots, showInfra, showParticles, showRoutes, showStations, sortedCompareFlows, sortedFlows, sortedRouteEdges, stationFilter, stationMetric, stations, stnMax, supportRouteEdges],
   );
 
   /* ── push layers to overlay ── */

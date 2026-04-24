@@ -4,11 +4,24 @@ dist
 .DS_Store
 *.log
 *.tsbuildinfo
+build_errors.txt
 vite.config.js
 vite.config.d.ts
+.mplconfig/
+README 2.md
 data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
 data/interim/*
 !data/interim/.gitkeep
+public/data/service_street_network.geojson
+public/data/service_water.geojson
+public/data/trip_aggregates_annual.json
+scripts/build_midterm_*.py
+scripts/build_midterm_*.cjs
+scripts/capture_ppt_screens.mjs
+scripts/fetch/fetch_service_water.mjs
+scripts/generate_midterm_figures.py
+scripts/prepare_ppt_images.py
+src/styles/immersive.css

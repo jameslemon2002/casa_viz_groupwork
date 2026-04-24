@@ -1,393 +1,419 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { RegimeMatrix } from "../components/charts/RegimeMatrix";
 import { OdFlowMapCanvas } from "../components/maps/OdFlowMapCanvas";
 import { useHourlyFlows } from "../hooks/useHourlyFlows";
+import { useRegimeSummary } from "../hooks/useRegimeSummary";
+import { useRouteFlows } from "../hooks/useRouteFlows";
 import { useStoryDataset } from "../hooks/useStoryDataset";
-import { HeroOverlaySection } from "../components/sections/HeroOverlaySection";
-import { StationTooltip } from "../components/ui/StationTooltip";
-import { TimeSlider } from "../components/ui/TimeSlider";
-import { TimeHeatmapPanelStory } from "../components/charts/TimeHeatmapPanelStory";
-import { BoroughBarPanelStory } from "../components/charts/BoroughBarPanelStory";
-import { WeekdayWeekendChart } from "../components/charts/WeekdayWeekendChart";
-import {
-  heroFrames,
-  storyScenes as scenes,
-  type StoryProfileId,
-} from "../content/storyScenes";
+import type { HourlyFlow } from "../hooks/useHourlyFlows";
+import type { RegimeId, RegimeRecord } from "../types/regimes";
+
+type SceneId = "claim" | "states" | "work" | "leisure" | "night" | "limits";
+
+type SceneDefinition = {
+  id: SceneId;
+  step: string;
+  navLabel: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+  note?: string;
+  regimeId: RegimeId;
+};
+
+const scenes: SceneDefinition[] = [
+  {
+    id: "claim",
+    step: "01",
+    navLabel: "Claim",
+    eyebrow: "Core argument",
+    title: "One docking system. Four recurring ways of using it.",
+    body:
+      "This page is not about finding one dramatic hour. It treats the Santander Cycles network as a stable system inside inner and central London, then asks how recurring usage states reorganise that same system across the week.",
+    note: "The study area is the operational docking footprint, not all of Greater London.",
+    regimeId: "work_core",
+  },
+  {
+    id: "states",
+    step: "02",
+    navLabel: "States",
+    eyebrow: "Evidence chain",
+    title: "Usage states are discovered before representative hours are chosen.",
+    body:
+      "All 48 weekday and weekend hour slices are clustered by their full hotspot geography. The representative map views are selected afterwards, so the page is driven by regime evidence rather than pre-declared showcase times.",
+    note: "A weak dawn transition exists as a fourth state, but the three dominant regimes carry the main argument.",
+    regimeId: "work_core",
+  },
+  {
+    id: "work",
+    step: "03",
+    navLabel: "Work",
+    eyebrow: "Regime A",
+    title: "A work-core regime locks onto terminals, the City and core employment anchors.",
+    body:
+      "This is the strongest weekday state. The same network that looks diffuse at other times compresses into Waterloo, Bank, Liverpool Street and adjacent corridors, which is why the project should talk about use patterns rather than a generic hourly atlas.",
+    regimeId: "work_core",
+  },
+  {
+    id: "leisure",
+    step: "04",
+    navLabel: "Leisure",
+    eyebrow: "Regime B",
+    title: "A daytime leisure regime pulls the network toward parks and mixed central destinations.",
+    body:
+      "Weekend daytime dominates this state, but weekday midday also falls into it. That matters: leisure-oriented use is not just a weekend anomaly, it is one of the recurring functional modes of the system.",
+    regimeId: "day_leisure",
+  },
+  {
+    id: "night",
+    step: "05",
+    navLabel: "Night",
+    eyebrow: "Regime C",
+    title: "A night-social regime recentres the map on Soho, Borough and late central activity.",
+    body:
+      "Evening and night do not simply thin out demand. The geography changes again, with a tighter social core and a different set of recurrent hotspots than the daytime work or leisure regimes.",
+    regimeId: "night_social",
+  },
+  {
+    id: "limits",
+    step: "06",
+    navLabel: "Limits",
+    eyebrow: "Boundary",
+    title: "The claim is already strong, but V1 is still an interpretation layer, not a finished explanation.",
+    body:
+      "The road layer is an inferred route-use allocation from aggregated OD pairs, not observed route choice. The functional labels are therefore disciplined interpretations of recurring spatial signatures. The next step is to test them against greenspace, workplace and selected POI context rather than just naming them.",
+    note: "The dawn transition is kept visible here because it is structurally distinct, even though it is weaker than the three main regimes.",
+    regimeId: "dawn_transition",
+  },
+];
+
+function formatCompact(value: number) {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${Math.round(value / 1_000).toLocaleString()}K`;
+  return Math.round(value).toLocaleString();
+}
 
 function formatHour(hour: number) {
   return `${String(hour).padStart(2, "0")}:00`;
 }
 
-function formatTrips(value: number) {
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1)}M`;
+function formatHourRange(hours: number[] | undefined) {
+  if (!hours || hours.length === 0) return "none";
+  const sorted = [...hours].sort((left, right) => left - right);
+  const groups: Array<[number, number]> = [];
+
+  for (const hour of sorted) {
+    const current = groups.at(-1);
+    if (!current || hour > current[1] + 1) {
+      groups.push([hour, hour]);
+      continue;
+    }
+    current[1] = hour;
   }
-  if (value >= 1_000) {
-    return `${Math.round(value / 1_000)}K`;
-  }
-  return value.toLocaleString();
+
+  return groups
+    .map(([start, end]) => (start === end ? formatHour(start) : `${formatHour(start)}-${formatHour(end)}`))
+    .join(", ");
 }
 
-function getEncodingNote(viewMode: string) {
-  switch (viewMode) {
-    case "flows":
-      return "Brighter overlaps indicate stronger recurring OD movement.";
-    case "hotspots":
-      return "Contours show where recurring activity gathers and relaxes.";
-    case "stations":
-      return "Station intensity is scaled by the active story metric.";
-    case "infrastructure":
-      return "The map compares recurring demand with nearby low-stress support.";
-    default:
-      return "";
+function describeRegimeWindow(regime: RegimeRecord) {
+  const weekdayRange = formatHourRange(regime.hoursByProfile.weekdays);
+  const weekendRange = formatHourRange(regime.hoursByProfile.weekends);
+  return { weekdayRange, weekendRange };
+}
+
+function profileLine(regime: RegimeRecord) {
+  const weekdayCount = regime.profileCounts.weekdays ?? 0;
+  const weekendCount = regime.profileCounts.weekends ?? 0;
+  if (weekdayCount > 0 && weekendCount > 0) return `${weekdayCount} weekday slices + ${weekendCount} weekend slices`;
+  if (weekdayCount > 0) return `${weekdayCount} weekday slices`;
+  if (weekendCount > 0) return `${weekendCount} weekend slices`;
+  return `${regime.sliceCount} slices`;
+}
+
+function isLoopFlow(flow: HourlyFlow) {
+  return flow.oName === flow.dName || (flow.oLon === flow.dLon && flow.oLat === flow.dLat);
+}
+
+function selectShowcaseFlows(flows: HourlyFlow[]) {
+  const seenPairs = new Set<string>();
+  const picked: HourlyFlow[] = [];
+
+  for (const flow of [...flows].sort((left, right) => right.count - left.count)) {
+    if (isLoopFlow(flow)) continue;
+
+    const pairKey = `${flow.oName}->${flow.dName}`;
+    if (seenPairs.has(pairKey)) continue;
+
+    seenPairs.add(pairKey);
+    picked.push(flow);
+
+    if (picked.length === 5) break;
   }
+
+  return picked;
 }
 
 export function OdFlowPage() {
-  const {
-    ready: hourlyReady,
-    error: hourlyError,
-    globalFlowMax,
-    getSlice,
-  } = useHourlyFlows();
   const { dataset: storyData, isLoading: storyLoading } = useStoryDataset();
+  const { data: regimeData, ready: regimeReady, error: regimeError, getRegime } = useRegimeSummary();
+  const { ready: hourlyReady, error: hourlyError, getSlice: getHourlySlice } = useHourlyFlows();
+  const [activeSceneId, setActiveSceneId] = useState<SceneId>("claim");
 
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [isHeroViewport, setIsHeroViewport] = useState(true);
-  const [hoverStation, setHoverStation] = useState<{ station: typeof storyData.stationMetrics[0]; position: { x: number; y: number } } | null>(null);
-  const [profileId, setProfileId] = useState<StoryProfileId>("all");
-  const [hour, setHour] = useState(17);
-  const [heroFrame, setHeroFrame] = useState(0);
-  const sentinelRefs = useRef<(HTMLElement | null)[]>([]);
+  const sectionRefs = useRef<Record<SceneId, HTMLElement | null>>({
+    claim: null,
+    states: null,
+    work: null,
+    leisure: null,
+    night: null,
+    limits: null,
+  });
 
-  const visualSceneIdx = isHeroViewport ? 0 : activeIdx;
-  const scene = scenes[visualSceneIdx];
-  const isHeroScene = visualSceneIdx === 0;
+  const activeScene = scenes.find((scene) => scene.id === activeSceneId) ?? scenes[0];
+  const activeRegime = getRegime(activeScene.regimeId) ?? regimeData.regimes[0] ?? null;
+  const activeProfileId = activeRegime?.representative.profileId ?? "weekdays";
+  const activeHour = activeRegime?.representative.hour ?? 17;
+
+  const {
+    data: routeData,
+    ready: routeReady,
+    activeSliceReady,
+    error: routeError,
+    maxAverageDailyTrips,
+    getSlice: getRouteSlice,
+  } = useRouteFlows(activeProfileId, activeHour);
+
+  const activeRouteSlice = useMemo(() => getRouteSlice(activeProfileId, activeHour), [activeHour, activeProfileId, getRouteSlice]);
+  const activeFlowSlice = useMemo(() => getHourlySlice(activeProfileId, activeHour), [activeHour, activeProfileId, getHourlySlice]);
+  const showcaseFlows = useMemo(() => selectShowcaseFlows(activeFlowSlice.flows), [activeFlowSlice.flows]);
 
   useEffect(() => {
-    if (isHeroScene) return;
-    setProfileId(scene.defaultProfileId);
-    setHour(scene.defaultHour);
-  }, [isHeroScene, scene.defaultHour, scene.defaultProfileId]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
 
-  useEffect(() => {
-    if (!isHeroScene || !hourlyReady) return undefined;
+        const sceneId = visible?.target.getAttribute("data-scene-id") as SceneId | null;
+        if (sceneId) {
+          setActiveSceneId(sceneId);
+        }
+      },
+      {
+        threshold: [0.35, 0.55, 0.75],
+        rootMargin: "-12% 0px -32% 0px",
+      },
+    );
 
-    const interval = window.setInterval(() => {
-      setHeroFrame((prev) => (prev + 1) % heroFrames.length);
-    }, 2400);
+    for (const scene of scenes) {
+      const element = sectionRefs.current[scene.id];
+      if (element) observer.observe(element);
+    }
 
-    return () => window.clearInterval(interval);
-  }, [hourlyReady, isHeroScene]);
-
-  useEffect(() => {
-    let ticking = false;
-    const handleScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        ticking = false;
-        const scrollY = window.scrollY;
-        const vh = window.innerHeight;
-        setIsHeroViewport(scrollY < vh * 0.72);
-        const midY = vh * 0.45;
-        let bestIdx = 0;
-        let bestDist = Infinity;
-        sentinelRefs.current.forEach((el, i) => {
-          if (!el) return;
-          const rect = el.getBoundingClientRect();
-          const center = rect.top + rect.height / 2;
-          const dist = Math.abs(center - midY);
-          if (dist < bestDist) { bestDist = dist; bestIdx = i; }
-        });
-        setActiveIdx(bestIdx);
-      });
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => observer.disconnect();
   }, []);
 
-  const activeSlice = useMemo(() => {
-    if (!hourlyReady) return null;
-    if (isHeroScene) {
-      const frame = heroFrames[heroFrame];
-      return getSlice(frame.profileId, frame.hour);
-    }
-    return getSlice(profileId, hour);
-  }, [getSlice, heroFrame, hour, hourlyReady, isHeroScene, profileId]);
-
-  const compareProfileId = useMemo(() => {
-    if (scene.id !== "weekend") return null;
-    if (profileId === "weekdays") return "weekends" as const;
-    if (profileId === "weekends") return "weekdays" as const;
-    return null;
-  }, [profileId, scene.id]);
-
-  const compareSlice = useMemo(() => {
-    if (!hourlyReady || !compareProfileId) return null;
-    return getSlice(compareProfileId, hour);
-  }, [compareProfileId, getSlice, hour, hourlyReady]);
-
-  const flows = activeSlice?.flows ?? [];
-  const compareFlows = compareSlice?.flows ?? [];
-  const hotspots = activeSlice?.hotspots ?? [];
-
-  const handleStationHover = useCallback(
-    (station: typeof storyData.stationMetrics[0] | null, position: { x: number; y: number } | null) => {
-      if (!station || !position) {
-        setHoverStation(null);
-        return;
-      }
-
-      setHoverStation({ station, position });
-    },
-    [storyData.stationMetrics],
-  );
-
-  const stageClass = isHeroScene ? "map-stage map-stage--hero" : "map-stage map-stage--story";
-  function renderEvidencePanel() {
-    if (!scene.evidencePanel?.type) return null;
-    const config = scene.evidencePanel.config ?? {};
-
-    switch (scene.evidencePanel.type) {
-      case "heatmap": {
-        const targetProfileId = (config.profileId as string) || profileId;
-        const profile = storyData.profiles.find((item) => item.id === targetProfileId);
-        if (!profile) return null;
-
-        return (
-          <TimeHeatmapPanelStory
-            key={`heatmap-${targetProfileId}`}
-            profile={profile}
-            colorScheme={scene.color}
-            activeHour={hour}
-            title={(config.title as string) || "Hourly trip volume"}
-            onHourClick={setHour}
-          />
-        );
-      }
-
-      case "borough": {
-        const metric = (config.metric as "tripIntensity" | "deficitIndex" | "lowStressDensity") || "tripIntensity";
-        const limit = (config.limit as number) || 8;
-
-        return (
-          <BoroughBarPanelStory
-            key={`borough-${metric}`}
-            boroughs={storyData.boroughMetrics}
-            metric={metric}
-            limit={limit}
-            colorScheme={scene.color}
-            title={config.title as string | undefined}
-          />
-        );
-      }
-
-      case "weekend-comparison": {
-        const weekdayProfile = storyData.profiles.find((item) => item.id === "weekdays");
-        const weekendProfile = storyData.profiles.find((item) => item.id === "weekends");
-        if (!weekdayProfile || !weekendProfile) return null;
-
-        return (
-          <div className="evidence-panel evidence-panel--visible">
-            <WeekdayWeekendChart
-              weekdayProfile={weekdayProfile.hourSlices}
-              weekendProfile={weekendProfile.hourSlices}
-              activeHour={hour}
-              activeProfileId={profileId === "all" ? "weekends" : profileId}
-              onBarClick={(nextProfileId, nextHour) => {
-                setProfileId(nextProfileId);
-                setHour(nextHour);
-              }}
-            />
-          </div>
-        );
-      }
-
-      default:
-        return null;
-    }
-  }
-
-  if (hourlyError) {
+  if (routeError || regimeError || hourlyError) {
     return (
       <main className="load-screen">
-        <p>Hourly flow data failed to load.</p>
-        <p style={{ maxWidth: "38rem", textAlign: "center", color: "rgba(220,232,243,0.7)" }}>{hourlyError}</p>
+        <p>Page data failed to load.</p>
+        <p style={{ maxWidth: "38rem", textAlign: "center", color: "rgba(80,90,92,0.75)" }}>
+          {routeError || regimeError || hourlyError}
+        </p>
       </main>
     );
   }
 
-  if (!hourlyReady || storyLoading || !activeSlice) {
+  if (!regimeReady || !routeReady || !hourlyReady || !activeSliceReady || storyLoading || !activeRegime) {
     return (
       <main className="load-screen">
         <div className="load-ring" />
-        <p>Loading hourly story data&hellip;</p>
+        <p>Loading redesigned page&hellip;</p>
       </main>
+    );
+  }
+
+  const { weekdayRange, weekendRange } = describeRegimeWindow(activeRegime);
+
+  function scrollToScene(sceneId: SceneId) {
+    sectionRefs.current[sceneId]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function renderSupport(scene: SceneDefinition) {
+    const regime = getRegime(scene.regimeId);
+    if (!regime) return null;
+
+    if (scene.id === "states") {
+      return (
+        <div className="brief-support-card brief-support-card--matrix">
+          <div className="brief-support-topline">
+            <span>48 slices clustered</span>
+            <strong>silhouette {regimeData.summary.silhouetteScore.toFixed(4)}</strong>
+          </div>
+          <RegimeMatrix regimes={regimeData.regimes} slices={regimeData.slices} activeSliceKey={`${activeProfileId}:${activeHour}`} />
+        </div>
+      );
+    }
+
+    const { weekdayRange: regimeWeekdayRange, weekendRange: regimeWeekendRange } = describeRegimeWindow(regime);
+
+    return (
+      <div className="brief-support-card">
+        <div className="brief-support-topline">
+          <span>{regime.label}</span>
+          <strong>{profileLine(regime)}</strong>
+        </div>
+
+        <dl className="brief-metric-list">
+          <div>
+            <dt>Representative slice</dt>
+            <dd>{regime.representative.label}</dd>
+          </div>
+          <div>
+            <dt>Weekdays</dt>
+            <dd>{regimeWeekdayRange}</dd>
+          </div>
+          <div>
+            <dt>Weekends</dt>
+            <dd>{regimeWeekendRange}</dd>
+          </div>
+        </dl>
+
+        <div className="brief-hotspot-list">
+          {regime.topHotspots.slice(0, 5).map((hotspot) => (
+            <span key={hotspot.name}>{hotspot.name}</span>
+          ))}
+        </div>
+      </div>
     );
   }
 
   return (
-    <main className="page">
-      <section className={stageClass}>
-        <OdFlowMapCanvas
-          flows={flows}
-          compareFlows={compareFlows}
-          hotspots={hotspots}
-          stations={storyData.stationMetrics}
-          viewMode={scene.viewMode}
-          stationMetric={scene.stationMetric}
-          cameraPreset={scene.camera}
-          colorScheme={scene.color}
-          activeFlowProfileId={isHeroScene ? heroFrames[heroFrame].profileId : profileId}
-          compareFlowProfileId={compareProfileId}
-          interactive={false}
-          globalFlowMax={globalFlowMax}
-          onStationHover={handleStationHover}
-          showParticles={Boolean(scene.showParticles)}
-          showContours={Boolean(scene.showContours)}
-        />
+    <main className="brief-page">
+      <section className="brief-stage">
+        <div className="brief-scroll-shell">
+          <nav className="brief-progress" aria-label="Section progress">
+            {scenes.map((scene) => (
+              <button
+                key={scene.id}
+                type="button"
+                className={scene.id === activeSceneId ? "brief-progress-dot brief-progress-dot--active" : "brief-progress-dot"}
+                onClick={() => scrollToScene(scene.id)}
+                aria-label={scene.navLabel}
+                title={scene.navLabel}
+              >
+                <span>{scene.step}</span>
+              </button>
+            ))}
+          </nav>
 
-        <div className="vignette" />
-        <div className="scroll-pass" />
-        <div className="story-editorial-backdrop" aria-hidden="true" />
-
-        <HeroOverlaySection
-          isVisible={isHeroScene}
-          annualTrips={storyData.summary.annualTrips}
-          stationCount={storyData.summary.stationCount}
-          boroughCount={storyData.summary.boroughCount}
-        />
-
-        <StationTooltip
-          station={hoverStation?.station || null}
-          position={hoverStation?.position || null}
-          visible={hoverStation !== null && (scene.viewMode === "stations" || scene.viewMode === "infrastructure")}
-        />
-
-        {!isHeroScene && scene.showControls && (
-          <div className="map-dock">
-            <TimeSlider
-              hour={hour}
-              onHourChange={setHour}
-              profileId={profileId}
-              onProfileChange={setProfileId}
-              tripCount={activeSlice.tripCount}
-              timeBucket={activeSlice.timeBucket}
-              variant="dock"
-            />
-            <p className="map-dock-note">{getEncodingNote(scene.viewMode)}</p>
-          </div>
-        )}
-
-      </section>
-
-      <div className={isHeroScene ? "story-flow story-flow--hero" : "story-flow story-flow--story"}>
-        {scenes.map((item, index) => (
-          <section
-            key={item.id}
-            data-scene-index={index}
-            ref={(element) => {
-              sentinelRefs.current[index] = element;
-            }}
-            className={
-              index === 0
-                ? "story-step-section story-step-section--hero"
-                : index === activeIdx
-                  ? "story-step-section story-step-section--active"
-                  : "story-step-section"
-            }
-          >
-            {index > 0 && (() => {
-              const itemNotes = item.annotationKey ? storyData.sceneAnnotations?.[item.annotationKey] ?? [] : [];
-
-              return (
-                <div className="story-step-grid">
-                  <div className="story-step-column">
-                    <article className={index === activeIdx ? "story-step-copy story-step-copy--active" : "story-step-copy"}>
-                      {item.transition ? <p className="story-transition">{item.transition}</p> : null}
-                      <div className="story-step-topline">
-                        <span className="story-step-index">{String(index).padStart(2, "0")}</span>
-                        <span className="card-kicker">{item.eyebrow}</span>
-                      </div>
-                      <h2 className="card-title">{item.title}</h2>
-                      <p className="story-step-lede">{item.body}</p>
-                      {itemNotes.length > 0 ? (
-                        <div className="story-inline-notes">
-                          {itemNotes.slice(0, 2).map((note) => (
-                            <p key={note} className="story-inline-note">{note}</p>
-                          ))}
-                        </div>
-                      ) : null}
-                      {item.supportingFact && <p className="story-step-aside">{item.supportingFact}</p>}
-                      {index === activeIdx ? (
-                        <p className="story-inline-stat">
-                          At <strong>{formatHour(activeSlice.hour)}</strong>, this scene shows <strong>{formatTrips(activeSlice.tripCount)}</strong> trips across <strong>{flows.length}</strong> visible flow links.
-                        </p>
-                      ) : null}
-                    </article>
-
-                    {index === activeIdx && (
-                      <div className="story-step-support">
-                        {renderEvidencePanel()}
-                      </div>
-                    )}
+          <div className="brief-scroll-column">
+            {scenes.map((scene) => (
+              <section
+                key={scene.id}
+                ref={(node) => {
+                  sectionRefs.current[scene.id] = node;
+                }}
+                className="brief-step"
+                data-scene-id={scene.id}
+              >
+                <article className={scene.id === activeSceneId ? "brief-card brief-card--active" : "brief-card"}>
+                  <div className="brief-card-topline">
+                    <span>{scene.eyebrow}</span>
+                    <strong>{scene.step}</strong>
                   </div>
-                </div>
-              );
-            })()}
-          </section>
-        ))}
-      </div>
-
-      <section className="method">
-        <div className="method-inner">
-          <span className="card-kicker">Method Appendix</span>
-          <h2 className="method-title">Data, aggregation, and limitations</h2>
-          <p className="method-lead">
-            The frontend now reads true <strong>profile × hour</strong> slices derived from the 2025 TfL Santander Cycles archive.
-            That means every hour on the slider resolves to a real aggregated map, rather than a broad daypart placeholder.
-          </p>
-
-          <div className="method-grid">
-            <article className="method-card">
-              <h3>Core datasets</h3>
-              <ul>
-                <li>TfL Santander Cycles annual trip archive, 2025</li>
-                <li>TfL BikePoint API — station coordinates and capacity</li>
-                <li>GLA London borough boundaries</li>
-                <li>TfL cycle routes and infrastructure assets</li>
-              </ul>
-            </article>
-            <article className="method-card">
-              <h3>Aggregation</h3>
-              <ul>
-                <li>Trips grouped into recurring profiles: all days, weekdays and weekends</li>
-                <li>Each profile split into 24 true hourly slices</li>
-                <li>Top flows and hotspots preserved per hour for browser performance</li>
-                <li>Supporting story metrics loaded from a separate story dataset</li>
-              </ul>
-            </article>
-            <article className="method-card">
-              <h3>Infrastructure proxy</h3>
-              <ul>
-                <li>OpenStreetMap cycleway tags for protected, painted and quiet routes</li>
-                <li>500 m station context used as a proxy for low-stress support</li>
-                <li>Not a full route-based accessibility model</li>
-              </ul>
-            </article>
-            <article className="method-card">
-              <h3>Limitations</h3>
-              <ul>
-                <li>Shows recurring hourly structure, not every raw trip trace</li>
-                <li>No demographic or trip-purpose attributes</li>
-                <li>Visual emphasis is editorial, not exhaustive exploration</li>
-              </ul>
-            </article>
+                  <h1 className="brief-card-title">{scene.title}</h1>
+                  <p className="brief-card-body">{scene.body}</p>
+                  {scene.note ? <p className="brief-card-note">{scene.note}</p> : null}
+                  {scene.id === "claim" ? (
+                    <div className="brief-card-stats">
+                      <div>
+                        <dt>Stations</dt>
+                        <dd>{storyData.headlineStats.stationCount.toLocaleString()}</dd>
+                      </div>
+                      <div>
+                        <dt>Trips in 2025</dt>
+                        <dd>{formatCompact(storyData.headlineStats.annualTrips)}</dd>
+                      </div>
+                      <div>
+                        <dt>Boroughs</dt>
+                        <dd>{storyData.headlineStats.boroughCount}</dd>
+                      </div>
+                    </div>
+                  ) : null}
+                  {renderSupport(scene)}
+                </article>
+              </section>
+            ))}
           </div>
         </div>
+
+        <aside className="brief-map-shell">
+          <div className="brief-map-frame">
+            <OdFlowMapCanvas
+              flows={showcaseFlows}
+              compareFlows={[]}
+              routeEdges={activeRouteSlice.edges}
+              hotspots={activeFlowSlice.hotspots.slice(0, 8)}
+              stations={storyData.stationMetrics}
+              viewMode="routes"
+              stationMetric="annualTrips"
+              cameraPreset={activeRegime.cameraPreset}
+              colorScheme={activeRegime.colorScheme}
+              activeFlowProfileId={activeProfileId}
+              compareFlowProfileId={null}
+              interactive={false}
+              globalFlowMax={1}
+              routeFlowMax={maxAverageDailyTrips}
+            />
+            <div className="brief-map-wash" />
+
+            <div className="brief-map-label">Santander Cycles service area</div>
+
+            <div className="brief-map-caption">
+              <p className="brief-map-kicker">{activeScene.eyebrow}</p>
+              <h2>{activeRegime.label}</h2>
+              <p>{activeRegime.description}</p>
+
+              <div className="brief-map-metrics">
+                <div>
+                  <span>Representative</span>
+                  <strong>{activeRegime.representative.label}</strong>
+                </div>
+                <div>
+                  <span>Avg trips / profile day</span>
+                  <strong>{Math.round(activeRouteSlice.averageDailyTrips).toLocaleString()}</strong>
+                </div>
+                <div>
+                  <span>Weekday window</span>
+                  <strong>{weekdayRange}</strong>
+                </div>
+                <div>
+                  <span>Weekend window</span>
+                  <strong>{weekendRange}</strong>
+                </div>
+              </div>
+
+              {showcaseFlows.length > 0 ? (
+                <div className="brief-map-examples">
+                  <span>Dominant OD pairs</span>
+                  {showcaseFlows.slice(0, 3).map((flow) => (
+                    <p key={`${flow.oName}-${flow.dName}`}>
+                      {flow.oName} to {flow.dName}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </aside>
       </section>
+
+      <footer className="brief-footer">
+        <p>
+          Route model: {routeData.meta.routeModel}. Limitation: {routeData.meta.limitation}
+        </p>
+      </footer>
     </main>
   );
 }

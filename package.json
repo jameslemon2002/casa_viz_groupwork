@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "data:fetch:bikepoint": "node scripts/fetch/fetch_bikepoint.mjs",
+    "data:fetch:street-network": "node scripts/fetch/fetch_service_street_network.mjs",
+    "data:fetch:greenspaces": "node scripts/fetch/fetch_service_greenspaces.mjs",
     "data:build:stations": "node scripts/clean/build_stations_dataset.mjs",
     "data:build:boroughs": "node scripts/clean/build_london_borough_basemap.mjs",
     "data:stations": "node scripts/aggregate/run_station_pipeline.mjs",
@@ -15,7 +17,10 @@
     "data:build:trip-annual": "node scripts/clean/build_trip_annual_aggregates.mjs",
     "data:trips:annual": "node scripts/aggregate/run_trip_year_pipeline.mjs",
     "data:build:story": "node scripts/clean/build_storytelling_dataset.mjs",
-    "data:build:hourly": "node scripts/clean/build_hourly_flows.mjs"
+    "data:build:hourly": "node scripts/clean/build_hourly_flows.mjs",
+    "data:build:temporal": "node scripts/clean/build_temporal_summary.mjs",
+    "data:build:route-flows": "node scripts/clean/build_route_flows.mjs",
+    "data:build:regimes": "node scripts/clean/build_regime_summary.mjs"
   },
   "dependencies": {
     "@deck.gl/aggregation-layers": "^9.2.11",

@@ -7,6 +7,7 @@ export type TimeSliderProps = {
   onProfileChange: (profileId: "all" | "weekdays" | "weekends") => void;
   tripCount: number;
   timeBucket: string;
+  metricLabel?: string;
   variant?: "sidebar" | "dock";
 };
 
@@ -23,13 +24,14 @@ export function TimeSlider({
   onProfileChange,
   tripCount,
   timeBucket,
+  metricLabel = "trips",
   variant = "sidebar",
 }: TimeSliderProps) {
   const timeDisplay = useMemo(() => `${String(hour).padStart(2, "0")}:00`, [hour]);
 
   return (
     <div className={variant === "dock" ? "time-slider time-slider--dock" : "time-slider"}>
-      {variant === "dock" && <p className="time-slider-kicker">Scrub the typical day</p>}
+      {variant === "dock" && <p className="time-slider-kicker">24-hour atlas</p>}
       <div className="time-slider-display">{timeDisplay}</div>
 
       <div className="time-slider-profiles" role="tablist" aria-label="Profile selector">
@@ -65,7 +67,7 @@ export function TimeSlider({
 
       <div className="time-slider-meta">
         <div className="time-slider-daypart">{timeBucket}</div>
-        <div className="time-slider-trips">{tripCount.toLocaleString()} trips</div>
+        <div className="time-slider-trips">{tripCount.toLocaleString()} {metricLabel}</div>
       </div>
     </div>
   );

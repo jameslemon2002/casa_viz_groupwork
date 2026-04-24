@@ -1,10 +1,11 @@
-export type StoryViewMode = "stations" | "flows" | "hotspots" | "infrastructure";
+export type StoryViewMode = "routes" | "stations" | "flows" | "hotspots" | "infrastructure";
 export type StoryTimeMode = "hour" | "daypart";
 export type StoryDaypartId = "am" | "midday" | "pm" | "night";
 export type StoryStationMetric = "capacity" | "annualTrips" | "weekdayAMTrips" | "weekendMiddayTrips" | "lowStressScore" | "deficitClass";
 export type StoryCameraPreset =
   | "hero"
   | "network"
+  | "review"
   | "rhythm"
   | "commute"
   | "weekend"

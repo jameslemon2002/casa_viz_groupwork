@@ -5,9 +5,9 @@ import { spawn } from "node:child_process";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "../..");
 
-function runNodeScript(relativePath) {
+function runNodeScript(relativePath, nodeArgs = []) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [relativePath], {
+    const child = spawn(process.execPath, [...nodeArgs, relativePath], {
       cwd: projectRoot,
       stdio: "inherit",
       env: process.env
@@ -28,7 +28,7 @@ function runNodeScript(relativePath) {
 
 async function main() {
   await runNodeScript("scripts/fetch/fetch_trip_year_2025.mjs");
-  await runNodeScript("scripts/clean/build_trip_annual_aggregates.mjs");
+  await runNodeScript("scripts/clean/build_trip_annual_aggregates.mjs", ["--max-old-space-size=8192"]);
 }
 
 main().catch((error) => {

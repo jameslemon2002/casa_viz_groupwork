@@ -1,0 +1,856 @@
+{
+  "summary": {
+    "generatedAt": "2026-04-20T22:36:53.301Z",
+    "source": "public/data/flows_hourly.json",
+    "profileIds": [
+      "weekdays",
+      "weekends"
+    ],
+    "sliceCount": 48,
+    "clusterCount": 4,
+    "gridSizeDegrees": 0.01,
+    "method": "kmeans-hotspot-grid",
+    "seed": 14,
+    "silhouetteScore": 0.2805,
+    "note": "Usage states are derived from full hourly hotspot distributions. Representative hours are selected after clustering, not pre-declared before analysis."
+  },
+  "regimes": [
+    {
+      "id": "work_core",
+      "label": "Work-core rush",
+      "shortLabel": "Work core",
+      "kicker": "Weekday peak regime",
+      "description": "A concentrated weekday regime around main rail terminals, the City and core employment anchors. This is the clearest work-oriented use state in the network.",
+      "colorScheme": "cool",
+      "cameraPreset": "commute",
+      "sliceCount": 7,
+      "profileCounts": {
+        "weekdays": 7,
+        "weekends": 0
+      },
+      "averageTripCount": 529797,
+      "representative": {
+        "profileId": "weekdays",
+        "hour": 17,
+        "label": "Weekdays 17:00",
+        "tripCount": 740891
+      },
+      "hoursByProfile": {
+        "weekdays": [
+          6,
+          7,
+          8,
+          9,
+          16,
+          17,
+          18
+        ],
+        "weekends": []
+      },
+      "topHotspots": [
+        {
+          "name": "Waterloo Station 3, Waterloo",
+          "lon": -0.112824,
+          "lat": 51.503791,
+          "activity": 87700
+        },
+        {
+          "name": "Waterloo Station 1, Waterloo",
+          "lon": -0.113864,
+          "lat": 51.504027,
+          "activity": 55200
+        },
+        {
+          "name": "Wormwood Street, Liverpool Street",
+          "lon": -0.082422,
+          "lat": 51.516154,
+          "activity": 48710
+        },
+        {
+          "name": "Queen Street 1, Bank",
+          "lon": -0.09294,
+          "lat": 51.511553,
+          "activity": 40731
+        },
+        {
+          "name": "Argyle Street, Kings Cross",
+          "lon": -0.123944,
+          "lat": 51.529416,
+          "activity": 39682
+        },
+        {
+          "name": "St. James's Square, St. James's",
+          "lon": -0.134621,
+          "lat": 51.507424,
+          "activity": 38972
+        },
+        {
+          "name": "Brushfield Street, Liverpool Street",
+          "lon": -0.079249,
+          "lat": 51.518908,
+          "activity": 35693
+        },
+        {
+          "name": "Queen Street 2, Bank",
+          "lon": -0.093051,
+          "lat": 51.511246,
+          "activity": 34534
+        }
+      ]
+    },
+    {
+      "id": "day_leisure",
+      "label": "Daytime park and leisure",
+      "shortLabel": "Day leisure",
+      "kicker": "Daytime regime",
+      "description": "A broad daytime regime centred on parks, the West End and mixed central destinations. It dominates weekend daytime and large parts of weekday midday.",
+      "colorScheme": "warm",
+      "cameraPreset": "weekend",
+      "sliceCount": 20,
+      "profileCounts": {
+        "weekdays": 7,
+        "weekends": 13
+      },
+      "averageTripCount": 197508,
+      "representative": {
+        "profileId": "weekends",
+        "hour": 13,
+        "label": "Weekends 13:00",
+        "tripCount": 172388
+      },
+      "hoursByProfile": {
+        "weekdays": [
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          19
+        ],
+        "weekends": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20
+        ]
+      },
+      "topHotspots": [
+        {
+          "name": "Hyde Park Corner, Hyde Park",
+          "lon": -0.15352,
+          "lat": 51.503117,
+          "activity": 77179
+        },
+        {
+          "name": "Albert Gate, Hyde Park",
+          "lon": -0.158456,
+          "lat": 51.502953,
+          "activity": 48035
+        },
+        {
+          "name": "Black Lion Gate, Kensington Gardens",
+          "lon": -0.187842,
+          "lat": 51.509908,
+          "activity": 45062
+        },
+        {
+          "name": "Hop Exchange, The Borough",
+          "lon": -0.091773,
+          "lat": 51.504627,
+          "activity": 40645
+        },
+        {
+          "name": "Exhibition Road, Knightsbridge",
+          "lon": -0.174554,
+          "lat": 51.499917,
+          "activity": 36913
+        },
+        {
+          "name": "Brushfield Street, Liverpool Street",
+          "lon": -0.079249,
+          "lat": 51.518908,
+          "activity": 31175
+        },
+        {
+          "name": "Serpentine Car Park, Hyde Park",
+          "lon": -0.17306,
+          "lat": 51.505014,
+          "activity": 29163
+        },
+        {
+          "name": "Soho Square , Soho",
+          "lon": -0.132328,
+          "lat": 51.515631,
+          "activity": 26995
+        }
+      ]
+    },
+    {
+      "id": "night_social",
+      "label": "Night and social centre",
+      "shortLabel": "Night social",
+      "kicker": "Evening regime",
+      "description": "An evening and night regime focused on the social core: Soho, Borough, London Bridge, Shoreditch and adjacent activity districts.",
+      "colorScheme": "purple",
+      "cameraPreset": "spatial",
+      "sliceCount": 15,
+      "profileCounts": {
+        "weekdays": 7,
+        "weekends": 8
+      },
+      "averageTripCount": 71864,
+      "representative": {
+        "profileId": "weekends",
+        "hour": 23,
+        "label": "Weekends 23:00",
+        "tripCount": 39033
+      },
+      "hoursByProfile": {
+        "weekdays": [
+          0,
+          1,
+          2,
+          20,
+          21,
+          22,
+          23
+        ],
+        "weekends": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          21,
+          22,
+          23
+        ]
+      },
+      "topHotspots": [
+        {
+          "name": "Hop Exchange, The Borough",
+          "lon": -0.091773,
+          "lat": 51.504627,
+          "activity": 9945
+        },
+        {
+          "name": "Tooley Street, Bermondsey",
+          "lon": -0.07962,
+          "lat": 51.503493,
+          "activity": 9629
+        },
+        {
+          "name": "Soho Square , Soho",
+          "lon": -0.132328,
+          "lat": 51.515631,
+          "activity": 9441
+        },
+        {
+          "name": "Royal London Hospital, Whitechapel",
+          "lon": -0.06111,
+          "lat": 51.518675,
+          "activity": 8852
+        },
+        {
+          "name": "Old Street Station, St. Luke's",
+          "lon": -0.088532,
+          "lat": 51.525615,
+          "activity": 8733
+        },
+        {
+          "name": "Moor Street, Soho",
+          "lon": -0.13011,
+          "lat": 51.513527,
+          "activity": 8527
+        },
+        {
+          "name": "Battersea Park Road, Nine Elms",
+          "lon": -0.14177,
+          "lat": 51.479501,
+          "activity": 8092
+        },
+        {
+          "name": "Duke Street Hill, London Bridge",
+          "lon": -0.087262,
+          "lat": 51.506304,
+          "activity": 7707
+        }
+      ]
+    },
+    {
+      "id": "dawn_transition",
+      "label": "Dawn transition",
+      "shortLabel": "Dawn",
+      "kicker": "Transition regime",
+      "description": "A lower-volume shoulder regime bridging late night and the coming workday. It is structurally distinct, but weaker than the three dominant states.",
+      "colorScheme": "cool",
+      "cameraPreset": "rhythm",
+      "sliceCount": 6,
+      "profileCounts": {
+        "weekdays": 3,
+        "weekends": 3
+      },
+      "averageTripCount": 18240,
+      "representative": {
+        "profileId": "weekends",
+        "hour": 5,
+        "label": "Weekends 05:00",
+        "tripCount": 7787
+      },
+      "hoursByProfile": {
+        "weekdays": [
+          3,
+          4,
+          5
+        ],
+        "weekends": [
+          5,
+          6,
+          7
+        ]
+      },
+      "topHotspots": [
+        {
+          "name": "Brushfield Street, Liverpool Street",
+          "lon": -0.079249,
+          "lat": 51.518908,
+          "activity": 1381
+        },
+        {
+          "name": "Argyle Street, Kings Cross",
+          "lon": -0.123944,
+          "lat": 51.529416,
+          "activity": 1252
+        },
+        {
+          "name": "Duke Street Hill, London Bridge",
+          "lon": -0.087262,
+          "lat": 51.506304,
+          "activity": 958
+        },
+        {
+          "name": "London Street, Paddington",
+          "lon": -0.173712,
+          "lat": 51.515117,
+          "activity": 957
+        },
+        {
+          "name": "Wormwood Street, Liverpool Street",
+          "lon": -0.082422,
+          "lat": 51.516154,
+          "activity": 909
+        },
+        {
+          "name": "Gas Holders, Battersea Park",
+          "lon": -0.147857,
+          "lat": 51.477966,
+          "activity": 759
+        },
+        {
+          "name": "Baker Street, Marylebone",
+          "lon": -0.156166,
+          "lat": 51.518913,
+          "activity": 747
+        },
+        {
+          "name": "Moorfields, Moorgate",
+          "lon": -0.088285,
+          "lat": 51.519069,
+          "activity": 713
+        }
+      ]
+    }
+  ],
+  "slices": [
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 0,
+      "label": "Weekdays 00:00",
+      "tripCount": 39842,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 1,
+      "label": "Weekdays 01:00",
+      "tripCount": 20276,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 2,
+      "label": "Weekdays 02:00",
+      "tripCount": 11572,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 3,
+      "label": "Weekdays 03:00",
+      "tripCount": 8553,
+      "regimeId": "dawn_transition",
+      "regimeLabel": "Dawn transition",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 4,
+      "label": "Weekdays 04:00",
+      "tripCount": 13071,
+      "regimeId": "dawn_transition",
+      "regimeLabel": "Dawn transition",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 5,
+      "label": "Weekdays 05:00",
+      "tripCount": 37411,
+      "regimeId": "dawn_transition",
+      "regimeLabel": "Dawn transition",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 6,
+      "label": "Weekdays 06:00",
+      "tripCount": 155805,
+      "regimeId": "work_core",
+      "regimeLabel": "Work-core rush",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 7,
+      "label": "Weekdays 07:00",
+      "tripCount": 421276,
+      "regimeId": "work_core",
+      "regimeLabel": "Work-core rush",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 8,
+      "label": "Weekdays 08:00",
+      "tripCount": 804350,
+      "regimeId": "work_core",
+      "regimeLabel": "Work-core rush",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 9,
+      "label": "Weekdays 09:00",
+      "tripCount": 451195,
+      "regimeId": "work_core",
+      "regimeLabel": "Work-core rush",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 10,
+      "label": "Weekdays 10:00",
+      "tripCount": 273620,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 11,
+      "label": "Weekdays 11:00",
+      "tripCount": 256883,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 12,
+      "label": "Weekdays 12:00",
+      "tripCount": 297318,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 13,
+      "label": "Weekdays 13:00",
+      "tripCount": 298112,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 14,
+      "label": "Weekdays 14:00",
+      "tripCount": 284564,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 15,
+      "label": "Weekdays 15:00",
+      "tripCount": 321013,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 16,
+      "label": "Weekdays 16:00",
+      "tripCount": 438974,
+      "regimeId": "work_core",
+      "regimeLabel": "Work-core rush",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 17,
+      "label": "Weekdays 17:00",
+      "tripCount": 740891,
+      "regimeId": "work_core",
+      "regimeLabel": "Work-core rush",
+      "isRepresentative": true
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 18,
+      "label": "Weekdays 18:00",
+      "tripCount": 696086,
+      "regimeId": "work_core",
+      "regimeLabel": "Work-core rush",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 19,
+      "label": "Weekdays 19:00",
+      "tripCount": 442477,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 20,
+      "label": "Weekdays 20:00",
+      "tripCount": 291123,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 21,
+      "label": "Weekdays 21:00",
+      "tripCount": 212380,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 22,
+      "label": "Weekdays 22:00",
+      "tripCount": 162500,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekdays",
+      "profileLabel": "Weekdays",
+      "hour": 23,
+      "label": "Weekdays 23:00",
+      "tripCount": 97145,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 0,
+      "label": "Weekends 00:00",
+      "tripCount": 36008,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 1,
+      "label": "Weekends 01:00",
+      "tripCount": 22904,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 2,
+      "label": "Weekends 02:00",
+      "tripCount": 14462,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 3,
+      "label": "Weekends 03:00",
+      "tripCount": 10057,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 4,
+      "label": "Weekends 04:00",
+      "tripCount": 7033,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 5,
+      "label": "Weekends 05:00",
+      "tripCount": 7787,
+      "regimeId": "dawn_transition",
+      "regimeLabel": "Dawn transition",
+      "isRepresentative": true
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 6,
+      "label": "Weekends 06:00",
+      "tripCount": 14159,
+      "regimeId": "dawn_transition",
+      "regimeLabel": "Dawn transition",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 7,
+      "label": "Weekends 07:00",
+      "tripCount": 28458,
+      "regimeId": "dawn_transition",
+      "regimeLabel": "Dawn transition",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 8,
+      "label": "Weekends 08:00",
+      "tripCount": 57552,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 9,
+      "label": "Weekends 09:00",
+      "tripCount": 96980,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 10,
+      "label": "Weekends 10:00",
+      "tripCount": 132728,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 11,
+      "label": "Weekends 11:00",
+      "tripCount": 154525,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 12,
+      "label": "Weekends 12:00",
+      "tripCount": 169772,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 13,
+      "label": "Weekends 13:00",
+      "tripCount": 172388,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": true
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 14,
+      "label": "Weekends 14:00",
+      "tripCount": 170438,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 15,
+      "label": "Weekends 15:00",
+      "tripCount": 168944,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 16,
+      "label": "Weekends 16:00",
+      "tripCount": 165394,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 17,
+      "label": "Weekends 17:00",
+      "tripCount": 155149,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 18,
+      "label": "Weekends 18:00",
+      "tripCount": 139959,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 19,
+      "label": "Weekends 19:00",
+      "tripCount": 110223,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 20,
+      "label": "Weekends 20:00",
+      "tripCount": 82127,
+      "regimeId": "day_leisure",
+      "regimeLabel": "Daytime park and leisure",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 21,
+      "label": "Weekends 21:00",
+      "tripCount": 61199,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 22,
+      "label": "Weekends 22:00",
+      "tripCount": 52427,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": false
+    },
+    {
+      "profileId": "weekends",
+      "profileLabel": "Weekends",
+      "hour": 23,
+      "label": "Weekends 23:00",
+      "tripCount": 39033,
+      "regimeId": "night_social",
+      "regimeLabel": "Night and social centre",
+      "isRepresentative": true
+    }
+  ]
+}
