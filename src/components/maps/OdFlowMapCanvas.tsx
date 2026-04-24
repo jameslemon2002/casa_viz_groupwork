@@ -775,11 +775,11 @@ export function OdFlowMapCanvas({
         jointRounded: true,
         capRounded: true,
         getPath: (edge) => edge.coordinates,
-        getWidth: (edge) => showAllRouteEdges ? 0.62 + routeVisualStrength(edge, resolvedRouteMax) * 0.55 : 0.8 + routeVisualStrength(edge, resolvedRouteMax) * 3.2,
+        getWidth: (edge) => showAllRouteEdges ? 0.72 + routeVisualStrength(edge, resolvedRouteMax) * 0.72 : 0.8 + routeVisualStrength(edge, resolvedRouteMax) * 3.2,
         getColor: (edge) => showAllRouteEdges
-          ? rgba(routePalette.routeLight, 18 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 52))
+          ? rgba(routePalette.routeLight, 34 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 68))
           : editorialRouteContext(edge, resolvedRouteMax),
-        opacity: showAllRouteEdges ? 0.96 : 0.84,
+        opacity: showAllRouteEdges ? 1 : 0.84,
       }),
 
       new PathLayer<RouteFlowEdge>({
@@ -793,11 +793,11 @@ export function OdFlowMapCanvas({
         jointRounded: true,
         capRounded: true,
         getPath: (edge) => edge.coordinates,
-        getWidth: (edge) => showAllRouteEdges ? 0.72 + routeVisualStrength(edge, resolvedRouteMax) * 0.75 : 0.95 + routeVisualStrength(edge, resolvedRouteMax) * 4.6,
+        getWidth: (edge) => showAllRouteEdges ? 0.82 + routeVisualStrength(edge, resolvedRouteMax) * 0.98 : 0.95 + routeVisualStrength(edge, resolvedRouteMax) * 4.6,
         getColor: (edge) => showAllRouteEdges
-          ? rgba(routePalette.route, 16 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 84))
+          ? rgba(routePalette.route, 42 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 110))
           : rgba(routePalette.routeLight, 42 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 34)),
-        opacity: showAllRouteEdges ? 0.88 : 0.46,
+        opacity: showAllRouteEdges ? 0.94 : 0.46,
       }),
 
       new PathLayer<RouteFlowEdge>({
