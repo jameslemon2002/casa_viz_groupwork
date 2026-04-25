@@ -40,7 +40,7 @@ test("MapReviewPage gives guided story a legend and route click affordance", () 
   const storyMapBlock = source.match(/<OdFlowMapCanvas\s+flows=\{mapProps\.flows\}[\s\S]*?\/>/);
   assert.ok(storyMapBlock, "guided story map block should exist");
   assert.match(source, /function StoryMapLegend/);
-  assert.match(source, /<StoryMapLegend colorMode=\{storyRouteColorMode\} \/>/);
+  assert.match(source, /\{!selectedStoryOdRoute \? \(\s*<StoryMapLegend colorMode=\{storyRouteColorMode\} \/>/);
   assert.match(storyMapBlock[0], /onOdRouteClick=\{handleStoryOdRouteClick\}/);
 });
 
@@ -66,6 +66,7 @@ test("MapReviewPage keeps selected detail cards above map legends", () => {
 
   assert.match(source, /\{!\(selectedOdRoute \|\| selectedContextFeature\) \? \(\s*<ExploreMapLegend/);
   assert.match(floatingCardRule, /z-index:\s*20;/);
+  assert.match(cssSource, /\.map-review-route-lens--story\s*\{[\s\S]*?z-index:\s*24;/);
   assert.match(storyLegendRule, /z-index:\s*6;/);
   assert.match(exploreLegendRule, /z-index:\s*6;/);
 });

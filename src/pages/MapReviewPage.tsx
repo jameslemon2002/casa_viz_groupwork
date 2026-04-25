@@ -1488,7 +1488,9 @@ export function MapReviewPage() {
               </button>
             ))}
           </div>
-          <StoryMapLegend colorMode={storyRouteColorMode} />
+          {!selectedStoryOdRoute ? (
+            <StoryMapLegend colorMode={storyRouteColorMode} />
+          ) : null}
           <div className="map-review-wash" />
           <div className="map-review-area-label-layer" aria-hidden="true">
             {projectedAreaLabels.map((label) => (
