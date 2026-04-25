@@ -1,6 +1,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  buildOdRouteId,
+  buildOrderedRouteCoordinates,
+  simplifyRouteCoordinates,
+} from "../lib/od_route_lens_utils.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "../..");
@@ -17,6 +23,9 @@ const maxEdgesPerSlice = process.env.ROUTE_FLOW_MAX_EDGES ? Number(process.env.R
 const routeDisplayEdgeLimit = process.env.ROUTE_DISPLAY_MAX_EDGES ? Number(process.env.ROUTE_DISPLAY_MAX_EDGES) : Infinity;
 const edgeRetentionMode = Number.isFinite(routeDisplayEdgeLimit) ? "debug-top-n" : "all-routed-edges";
 const includeEdgeContributors = process.env.ROUTE_INCLUDE_EDGE_CONTRIBUTORS === "1";
+const writeRouteDetails = process.env.ROUTE_WRITE_ROUTE_DETAILS === "1";
+const writeOdRouteLens = process.env.ROUTE_WRITE_OD_ROUTE_LENS === "1";
+const routeDetailOnly = process.env.ROUTE_DETAIL_ONLY === "1";
 const routeEdgeFormat = process.env.ROUTE_EDGE_FORMAT ?? "compact-v1";
 const compactEdgeScales = {
   coordinate: 100000,
@@ -29,7 +38,10 @@ const compactTierCodes = {
   focus: 2,
   accent: 3,
 };
-const maxContributorCount = 3;
+const maxContributorCount = Number(process.env.ROUTE_DETAIL_MAX_CONTRIBUTORS ?? 5);
+const maxDetailEdgesPerSlice = Number(process.env.ROUTE_DETAIL_MAX_EDGES ?? 600);
+const maxOdLensRoutesPerSlice = process.env.ROUTE_OD_LENS_MAX_ROUTES ? Number(process.env.ROUTE_OD_LENS_MAX_ROUTES) : Infinity;
+const odLensSimplificationToleranceM = Number(process.env.ROUTE_OD_LENS_SIMPLIFY_M ?? 12);
 const maxSnapDistanceM = Number(process.env.ROUTE_MAX_SNAP_M ?? 600);
 const targetSliceFilter = new Set(
   (process.env.ROUTE_TARGET_SLICES ?? "")
@@ -212,12 +224,14 @@ function addContributor(edgeRecord, flow, assignedCount = flow.count) {
   const existing = edgeRecord.contributors.find((item) => item.label === label);
   if (existing) {
     existing.count += assignedCount;
+    existing.durationWeightedTotal += flow.dur * assignedCount;
   } else {
     edgeRecord.contributors.push({
       label,
       origin: flow.oName,
       destination: flow.dName,
       count: assignedCount,
+      durationWeightedTotal: flow.dur * assignedCount,
     });
   }
   edgeRecord.contributors.sort((a, b) => b.count - a.count);
@@ -465,6 +479,110 @@ function compactRouteEdge(edge) {
   ];
 }
 
+function displayEdgeId(edge) {
+  const [start, end] = edge.coordinates;
+  return `${start[0].toFixed(coordinatePrecision)},${start[1].toFixed(coordinatePrecision)}|${end[0].toFixed(coordinatePrecision)},${end[1].toFixed(coordinatePrecision)}`;
+}
+
+function buildRouteDetailPayload(slice) {
+  const detailEdges = slice.edges
+    .filter((edge) => edge.visualTier === "focus" || edge.visualTier === "accent" || (edge.visualRank ?? Infinity) <= maxDetailEdgesPerSlice)
+    .map((edge) => {
+      const edgeTripTotal = Math.max(edge.annualTripCount ?? 0, 1);
+      return {
+        edgeId: displayEdgeId(edge),
+        averageDailyTrips: edge.averageDailyTrips,
+        strength: edge.strength ?? 0,
+        visualTier: edge.visualTier ?? "context",
+        rank: edge.visualRank ?? null,
+        contributors: (edge.contributors ?? []).map((item) => ({
+          origin: item.origin,
+          destination: item.destination,
+          count: Math.round(item.count),
+          share: Number(Math.min(item.count / edgeTripTotal, 1).toFixed(3)),
+          durationMin: Number((item.durationWeightedTotal / Math.max(item.count, 1)).toFixed(1)),
+        })),
+      };
+    });
+
+  return {
+    profileId: slice.profileId,
+    label: slice.label,
+    hour: slice.hour,
+    timeBucket: slice.timeBucket,
+    edgeCount: detailEdges.length,
+    detailBasis: "focus-and-accent-route-segments-plus-top-ranked-fallback",
+    contributorsBasis: "Top assigned OD contributors from the stochastic route allocation for this profile/hour slice.",
+    edges: detailEdges,
+  };
+}
+
+function representativeRoute(routes) {
+  if (!routes?.length) return null;
+  return routes.reduce((best, route) => (route.probability > best.probability ? route : best), routes[0]);
+}
+
+function buildOdRouteRecord(profileId, hour, flow, routeSet, graph) {
+  const route = representativeRoute(routeSet.routes);
+  if (!route || route.edgeIds.length === 0) return null;
+  const coordinates = simplifyRouteCoordinates(
+    buildOrderedRouteCoordinates(route.edgeIds, graph.edges),
+    odLensSimplificationToleranceM,
+  );
+  if (coordinates.length < 2) return null;
+
+  return {
+    profileId,
+    hour,
+    origin: flow.oName,
+    destination: flow.dName,
+    originPosition: [Number(flow.oLon.toFixed(coordinatePrecision)), Number(flow.oLat.toFixed(coordinatePrecision))],
+    destinationPosition: [Number(flow.dLon.toFixed(coordinatePrecision)), Number(flow.dLat.toFixed(coordinatePrecision))],
+    annualTripCount: Math.round(flow.count),
+    averageDailyTrips: Number(averageDaily(flow.count, profileId).toFixed(2)),
+    durationMin: Number(flow.dur.toFixed(1)),
+    distanceM: Number(route.distanceM.toFixed(1)),
+    detourRatio: route.detourRatio ?? 1,
+    routeProbability: Number((route.probability ?? 1).toFixed(3)),
+    routeEdgeCount: route.edgeIds.length,
+    coordinateCount: coordinates.length,
+    coordinates,
+  };
+}
+
+function buildOdRouteLensPayload(slice) {
+  const sortedRoutes = [...(slice.odRoutes ?? [])].sort((a, b) => {
+    return b.averageDailyTrips - a.averageDailyTrips || a.origin.localeCompare(b.origin) || a.destination.localeCompare(b.destination);
+  });
+  const retainedRoutes = Number.isFinite(maxOdLensRoutesPerSlice)
+    ? sortedRoutes.slice(0, maxOdLensRoutesPerSlice)
+    : sortedRoutes;
+  const maxRouteAverageDailyTrips = sortedRoutes[0]?.averageDailyTrips ?? 1;
+
+  return {
+    profileId: slice.profileId,
+    label: slice.label,
+    hour: slice.hour,
+    timeBucket: slice.timeBucket,
+    routeCount: retainedRoutes.length,
+    totalRoutedOdRouteCount: sortedRoutes.length,
+    maxRouteAverageDailyTrips: Number(maxRouteAverageDailyTrips.toFixed(2)),
+    lensBasis: "Representative inferred street path for each routed OD relation in the retained hourly OD-flow table.",
+    routeStyleBasis: "Slice-relative strength: sqrt(OD route average daily trips / strongest OD route in this profile-hour slice).",
+    simplificationToleranceM: odLensSimplificationToleranceM,
+    routes: retainedRoutes.map((route, index) => {
+      const strength = Number(Math.sqrt(Math.min(route.averageDailyTrips / Math.max(maxRouteAverageDailyTrips, 1), 1)).toFixed(4));
+      return {
+        id: buildOdRouteId(slice.profileId, slice.hour, index + 1),
+        rank: index + 1,
+        strength,
+        visualTier: visualTierForStrength(strength),
+        ...route,
+      };
+    }),
+  };
+}
+
 function maybeCompactRouteSlice(slice) {
   if (routeEdgeFormat !== "compact-v1") return slice;
   return {
@@ -682,12 +800,20 @@ async function main() {
     assignedRouteCount: 0,
   };
 
+  const processedOdLensDir = path.join(processedDir, "od_route_lens");
+  const publicOdLensDir = path.join(publicDataDir, "od_route_lens");
+  if (writeOdRouteLens) {
+    mkdirSync(processedOdLensDir, { recursive: true });
+    mkdirSync(publicOdLensDir, { recursive: true });
+  }
+
   const profiles = flowsData.profiles.map((profile) => ({
     id: profile.id,
     label: profile.label,
     group: profile.group,
     hourSlices: profile.hourSlices.filter((slice) => includeSlice(profile.id, slice.hour)).map((slice) => {
       const edgeMap = new Map();
+      const odRoutes = [];
       const sortedFlows = [...(slice.flows ?? [])].sort((a, b) => b.count - a.count).slice(0, maxOdPairsPerSlice);
       const sliceStats = {
         profileId: profile.id,
@@ -724,6 +850,11 @@ async function main() {
         routeStats.maxSnapDistanceM = Math.max(routeStats.maxSnapDistanceM, sliceStats.maxSnapDistanceM);
         sliceStats.assignedRouteCount += result.routeSet.routes.length;
         routeStats.assignedRouteCount += result.routeSet.routes.length;
+
+        if (writeOdRouteLens && flow.oName !== flow.dName) {
+          const odRouteRecord = buildOdRouteRecord(profile.id, slice.hour, flow, result.routeSet, graph);
+          if (odRouteRecord) odRoutes.push(odRouteRecord);
+        }
 
         for (const route of result.routeSet.routes) {
           routeStats.maxRouteDistanceM = Math.max(routeStats.maxRouteDistanceM, route.distanceM);
@@ -770,7 +901,7 @@ async function main() {
         });
       const { styledEdges, maxEdgeAverageDailyTrips } = prepareStyledEdges(rawEdges);
 
-      return {
+      const sliceResult = {
         profileId: profile.id,
         label: profile.label,
         group: profile.group,
@@ -787,6 +918,15 @@ async function main() {
         maxSnapDistanceM: Number(sliceStats.maxSnapDistanceM.toFixed(1)),
         edges: styledEdges,
       };
+
+      if (writeOdRouteLens) {
+        const sliceName = `${profile.id}_${String(slice.hour).padStart(2, "0")}.json`;
+        const odRouteLensPayload = buildOdRouteLensPayload({ ...sliceResult, odRoutes });
+        writeFileSync(path.join(processedOdLensDir, sliceName), `${JSON.stringify(odRouteLensPayload)}\n`, "utf8");
+        writeFileSync(path.join(publicOdLensDir, sliceName), `${JSON.stringify(odRouteLensPayload)}\n`, "utf8");
+      }
+
+      return sliceResult;
     }),
   }));
 
@@ -826,6 +966,14 @@ async function main() {
       edgeRetention: edgeRetentionMode,
       edgeStyleBasis: "Global absolute strength: sqrt(edge average daily trips / maximum edge average daily trips across all route slices).",
       routeEdgeFormat,
+      odRouteLens: writeOdRouteLens
+        ? {
+            enabled: true,
+            maxRoutesPerSlice: Number.isFinite(maxOdLensRoutesPerSlice) ? maxOdLensRoutesPerSlice : "all-retained-od-routes",
+            simplificationToleranceM: odLensSimplificationToleranceM,
+            basis: "Representative inferred street path for each routed OD relation in the retained hourly OD-flow table.",
+          }
+        : { enabled: false },
       routeAssignment: {
         model: "candidate-route distance-decay allocation",
         distribution: "power-law",
@@ -858,29 +1006,52 @@ async function main() {
 
   const processedSlicesDir = path.join(processedDir, "route_flows");
   const publicSlicesDir = path.join(publicDataDir, "route_flows");
-  await mkdir(processedSlicesDir, { recursive: true });
-  await mkdir(publicSlicesDir, { recursive: true });
+  const processedDetailsDir = path.join(processedDir, "route_details");
+  const publicDetailsDir = path.join(publicDataDir, "route_details");
+  if (!routeDetailOnly) {
+    await mkdir(processedSlicesDir, { recursive: true });
+    await mkdir(publicSlicesDir, { recursive: true });
+  }
+  if (writeRouteDetails) {
+    await mkdir(processedDetailsDir, { recursive: true });
+    await mkdir(publicDetailsDir, { recursive: true });
+  }
 
-  const sliceWrites = [];
+  const sliceWriteJobs = [];
   const manifestProfiles = output.profiles.map((profile) => ({
     ...profile,
     hourSlices: profile.hourSlices.map((slice) => {
       const sliceName = `${profile.id}_${String(slice.hour).padStart(2, "0")}.json`;
       const slicePath = `data/route_flows/${sliceName}`;
+      const detailPath = `data/route_details/${sliceName}`;
+      const odRouteLensPath = `data/od_route_lens/${sliceName}`;
+      const { odRoutes: _odRoutes, ...sliceWithoutOdRoutes } = slice;
       const slicePayload = maybeCompactRouteSlice({
-        ...slice,
+        ...sliceWithoutOdRoutes,
         slicePath,
+        ...(writeRouteDetails ? { detailPath } : {}),
+        ...(writeOdRouteLens ? { odRouteLensPath } : {}),
       });
 
-      sliceWrites.push(
-        writeFile(path.join(processedSlicesDir, sliceName), `${JSON.stringify(slicePayload)}\n`, "utf8"),
-        writeFile(path.join(publicSlicesDir, sliceName), `${JSON.stringify(slicePayload)}\n`, "utf8"),
-      );
+      if (!routeDetailOnly) {
+        sliceWriteJobs.push(
+          () => writeFile(path.join(processedSlicesDir, sliceName), `${JSON.stringify(slicePayload)}\n`, "utf8"),
+          () => writeFile(path.join(publicSlicesDir, sliceName), `${JSON.stringify(slicePayload)}\n`, "utf8"),
+        );
+      }
+      if (writeRouteDetails) {
+        sliceWriteJobs.push(
+          () => writeFile(path.join(processedDetailsDir, sliceName), `${JSON.stringify(buildRouteDetailPayload(slice))}\n`, "utf8"),
+          () => writeFile(path.join(publicDetailsDir, sliceName), `${JSON.stringify(buildRouteDetailPayload(slice))}\n`, "utf8"),
+        );
+      }
 
       return {
-        ...slice,
+        ...sliceWithoutOdRoutes,
         edges: [],
         slicePath,
+        ...(writeRouteDetails ? { detailPath } : {}),
+        ...(writeOdRouteLens ? { odRouteLensPath } : {}),
         edgeFormat: routeEdgeFormat,
         ...(routeEdgeFormat === "compact-v1" ? { edgeScales: compactEdgeScales } : {}),
       };
@@ -893,9 +1064,13 @@ async function main() {
     profiles: manifestProfiles,
   };
 
-  await Promise.all(sliceWrites);
-  await writeFile(path.join(processedDir, "route_flows.json"), `${JSON.stringify(manifestOutput)}\n`, "utf8");
-  await writeFile(path.join(publicDataDir, "route_flows.json"), `${JSON.stringify(manifestOutput)}\n`, "utf8");
+  for (const writeJob of sliceWriteJobs) {
+    await writeJob();
+  }
+  if (!routeDetailOnly) {
+    await writeFile(path.join(processedDir, "route_flows.json"), `${JSON.stringify(manifestOutput)}\n`, "utf8");
+    await writeFile(path.join(publicDataDir, "route_flows.json"), `${JSON.stringify(manifestOutput)}\n`, "utf8");
+  }
 
   console.log(`Built inferred route flows for ${profiles.length} profiles`);
   if (targetSliceFilter.size > 0) {
@@ -904,7 +1079,15 @@ async function main() {
   console.log(`Graph nodes: ${graph.nodes.length}; graph edges: ${graph.edges.size}`);
   console.log(`Routed OD pairs: ${routeStats.routedOdPairs}; unrouted OD pairs: ${routeStats.unroutedOdPairs}`);
   console.log(`Assigned stochastic routes: ${routeStats.assignedRouteCount}`);
-  console.log(`Wrote sliced route-flow payloads to ${path.relative(projectRoot, publicSlicesDir)}`);
+  if (!routeDetailOnly) {
+    console.log(`Wrote sliced route-flow payloads to ${path.relative(projectRoot, publicSlicesDir)}`);
+  }
+  if (writeRouteDetails) {
+    console.log(`Wrote route detail sidecars to ${path.relative(projectRoot, publicDetailsDir)}`);
+  }
+  if (writeOdRouteLens) {
+    console.log(`Wrote OD route lens sidecars to ${path.relative(projectRoot, publicOdLensDir)}`);
+  }
 }
 
 main().catch((error) => {

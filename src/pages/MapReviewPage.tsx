@@ -1,16 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useSearchParams } from "react-router-dom";
 import { WeekdayWeekendChart } from "../components/charts/WeekdayWeekendChart";
 import { OdFlowMapCanvas } from "../components/maps/OdFlowMapCanvas";
 import { useHourlyFlows } from "../hooks/useHourlyFlows";
+import { useOdRouteLens } from "../hooks/useOdRouteLens";
 import { useRouteFlows } from "../hooks/useRouteFlows";
+import { useServiceContext } from "../hooks/useServiceContext";
 import { useStoryDataset } from "../hooks/useStoryDataset";
 import type { HourlyFlow, HourlySlice } from "../hooks/useHourlyFlows";
 import type { ColorScheme, FunctionAnchor, FunctionAnchorTone } from "../components/maps/OdFlowMapCanvas";
+import type { ExploreLayerId, LanduseCategory, OdRouteLensRoute, PoiCategory, RouteColorMode, ServiceContextPoiFeature, ServiceLanduseFeature } from "../types/routeLens";
 import type { RouteFlowSlice, StoryProfileId } from "../types/routeFlows";
+import type { StationInfraMetricRecord } from "../types/story";
 
-type ExploreLayer = "routes" | "hotspots";
 type ReviewTrackId = "weekday" | "weekend";
 type ReviewStepProfileId = "weekdays" | "weekends";
 
@@ -44,10 +47,47 @@ type ReviewTrackDefinition = {
   steps: ReviewStepDefinition[];
 };
 
-const exploreLayerOptions: Array<{ id: ExploreLayer; label: string }> = [
+const exploreLayerOptions: Array<{ id: ExploreLayerId; label: string }> = [
   { id: "routes", label: "Routes" },
   { id: "hotspots", label: "Hotspots" },
+  { id: "stations", label: "Stations" },
+  { id: "poi", label: "POI" },
+  { id: "landuse", label: "Land use" },
 ];
+
+type ExploreLayerState = Record<ExploreLayerId, boolean>;
+
+const defaultExploreLayers: ExploreLayerState = {
+  routes: true,
+  hotspots: false,
+  stations: false,
+  poi: false,
+  landuse: true,
+};
+
+const poiLabels: Record<PoiCategory, string> = {
+  transit: "Transit",
+  "office-work": "Office / work",
+  "food-night": "Food / night",
+  retail: "Retail",
+  "culture-tourism": "Culture",
+  education: "Education",
+  health: "Health",
+  civic: "Civic",
+  "sport-leisure": "Sport / leisure",
+};
+
+const landuseLabels: Record<LanduseCategory, string> = {
+  commercial: "Commercial",
+  retail: "Retail",
+  residential: "Residential",
+  "education-civic": "Education / civic",
+  "leisure-park": "Leisure / park",
+  industrial: "Industrial",
+};
+
+const poiLegendCategories: PoiCategory[] = ["transit", "office-work", "food-night", "retail", "culture-tourism", "sport-leisure"];
+const landuseLegendCategories: LanduseCategory[] = ["commercial", "retail", "residential", "education-civic", "leisure-park", "industrial"];
 
 const reviewTracks: ReviewTrackDefinition[] = [
   {
@@ -259,35 +299,12 @@ const stepFunctionAnchors: Record<string, FunctionAnchor[]> = {
   ],
 };
 
-type DisplayAnchor = FunctionAnchor & {
-  source: "manual" | "hotspot";
-  activity?: number;
-};
-
 type AreaLabel = {
   id: string;
   text: string;
   lon: number;
   lat: number;
   size?: "sm" | "md";
-};
-
-type GreenSpaceFeature = {
-  type: "Feature";
-  properties: {
-    id: string;
-    name: string;
-    source?: string;
-  };
-  geometry: {
-    type: "Polygon" | "MultiPolygon";
-    coordinates: number[][][] | number[][][][];
-  };
-};
-
-type GreenSpaceFeatureCollection = {
-  type: "FeatureCollection";
-  features: GreenSpaceFeature[];
 };
 
 const stepAreaLabels: Record<string, AreaLabel[]> = {
@@ -352,13 +369,6 @@ const baseAreaLabels: AreaLabel[] = [
   { id: "base-stratford", text: "Stratford", lon: -0.003, lat: 51.5417 },
 ];
 
-const stepGreenspaceIds: Record<string, string[]> = {
-  "weekdays-13": ["hyde-park", "kensington-gardens", "green-park", "st-jamess-park"],
-  "weekends-08": ["hyde-park", "kensington-gardens", "regents-park"],
-  "weekends-13": ["hyde-park", "kensington-gardens", "regents-park", "green-park", "st-jamess-park"],
-  "weekends-17": ["hyde-park", "kensington-gardens", "battersea-park", "regents-park"],
-};
-
 const evidenceStepIds = new Set(["weekdays-08", "weekends-13"]);
 
 function dominantToneForStep(stepId: string): FunctionAnchorTone {
@@ -367,35 +377,6 @@ function dominantToneForStep(stepId: string): FunctionAnchorTone {
     return stepId.startsWith("weekend") ? "green" : "orange";
   }
   return stepId.startsWith("weekday") ? "blue" : "orange";
-}
-
-function squaredDistance(leftLon: number, leftLat: number, rightLon: number, rightLat: number) {
-  return (leftLon - rightLon) ** 2 + (leftLat - rightLat) ** 2;
-}
-
-function inferHotspotTone(
-  stepId: string,
-  hotspot: { lon: number; lat: number; name: string },
-  manualAnchors: FunctionAnchor[],
-): FunctionAnchorTone {
-  const lowered = hotspot.name.toLowerCase();
-  if (/(park|gate|serpentine|gardens)/.test(lowered)) return "green";
-  if (/(soho|pier|west end|south bank|old street|tooley|moorgate|old st)/.test(lowered)) return "pink";
-  if (/(station|street|bank|waterloo|liverpool|kings cross|stratford|city|cheapside|queen)/.test(lowered)) return "blue";
-  if (/(museum|exhibition|borough|battersea|smithfield|south kensington)/.test(lowered)) return "orange";
-
-  const nearest = manualAnchors
-    .map((anchor) => ({
-      tone: anchor.tone,
-      distance: squaredDistance(anchor.lon, anchor.lat, hotspot.lon, hotspot.lat),
-    }))
-    .sort((left, right) => left.distance - right.distance)[0];
-
-  if (nearest && nearest.distance < 0.00026) {
-    return nearest.tone;
-  }
-
-  return dominantToneForStep(stepId);
 }
 
 const reviewSteps = reviewTracks.flatMap((track) => track.steps);
@@ -457,6 +438,431 @@ function summaryForStep(routeSlice: RouteFlowSlice, hourlySlice: HourlySlice): R
 function formatCompact(value: number) {
   if (value >= 1000) return `${(value / 1000).toLocaleString("en-GB", { maximumFractionDigits: 1 })}k`;
   return Math.round(value).toLocaleString("en-GB");
+}
+
+const londonMeanLat = 51.5072;
+const earthRadiusM = 6371008.8;
+
+type NearbyStation = StationInfraMetricRecord & { distanceM: number };
+type CategorySummary<TCategory extends string> = {
+  category: TCategory;
+  count: number;
+  names: string[];
+};
+
+type SelectedContextFeature =
+  | { kind: "poi"; feature: ServiceContextPoiFeature }
+  | { kind: "landuse"; feature: ServiceLanduseFeature };
+
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function toLocalXY(lon: number, lat: number) {
+  return [
+    earthRadiusM * toRadians(lon) * Math.cos(toRadians(londonMeanLat)),
+    earthRadiusM * toRadians(lat),
+  ] as const;
+}
+
+function distanceMetersBetween(leftLon: number, leftLat: number, rightLon: number, rightLat: number) {
+  const [leftX, leftY] = toLocalXY(leftLon, leftLat);
+  const [rightX, rightY] = toLocalXY(rightLon, rightLat);
+  return Math.hypot(leftX - rightX, leftY - rightY);
+}
+
+function routeLensMidpoint(route: OdRouteLensRoute | null) {
+  if (!route || route.coordinates.length === 0) return null;
+  const midpoint = route.coordinates[Math.floor(route.coordinates.length / 2)];
+  return {
+    lon: midpoint[0],
+    lat: midpoint[1],
+  };
+}
+
+function routeLensSamplePoints(route: OdRouteLensRoute | null) {
+  if (!route || route.coordinates.length === 0) return [];
+  const sampleCount = Math.min(route.coordinates.length, 16);
+  if (sampleCount <= 2) return route.coordinates.map(([lon, lat]) => ({ lon, lat }));
+  return Array.from({ length: sampleCount }, (_, index) => {
+    const coordIndex = Math.round((index / (sampleCount - 1)) * (route.coordinates.length - 1));
+    const [lon, lat] = route.coordinates[coordIndex];
+    return { lon, lat };
+  });
+}
+
+function minimumDistanceToSamples(lon: number, lat: number, samples: Array<{ lon: number; lat: number }>) {
+  if (samples.length === 0) return Number.POSITIVE_INFINITY;
+  return samples.reduce(
+    (minimum, sample) => Math.min(minimum, distanceMetersBetween(lon, lat, sample.lon, sample.lat)),
+    Number.POSITIVE_INFINITY,
+  );
+}
+
+function formatDistance(value: number) {
+  if (value >= 1000) return `${(value / 1000).toLocaleString("en-GB", { maximumFractionDigits: 1 })} km`;
+  return `${Math.round(value)} m`;
+}
+
+function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
+
+function collectCoordinatePairs(value: unknown, output: Array<[number, number]> = []) {
+  if (!Array.isArray(value)) return output;
+  if (typeof value[0] === "number" && typeof value[1] === "number") {
+    output.push([value[0], value[1]]);
+    return output;
+  }
+  for (const item of value) collectCoordinatePairs(item, output);
+  return output;
+}
+
+function featureCentroid(feature: ServiceLanduseFeature) {
+  const points = collectCoordinatePairs(feature.geometry.coordinates);
+  if (points.length === 0) return null;
+  const total = points.reduce((acc, point) => ({ lon: acc.lon + point[0], lat: acc.lat + point[1] }), { lon: 0, lat: 0 });
+  return {
+    lon: total.lon / points.length,
+    lat: total.lat / points.length,
+  };
+}
+
+function summarizeCategories<TFeature, TCategory extends string>(
+  features: TFeature[],
+  categoryOf: (feature: TFeature) => TCategory,
+  nameOf: (feature: TFeature) => string,
+): Array<CategorySummary<TCategory>> {
+  const summary = new Map<TCategory, CategorySummary<TCategory>>();
+  for (const feature of features) {
+    const category = categoryOf(feature);
+    const current = summary.get(category) ?? { category, count: 0, names: [] };
+    current.count += 1;
+    const name = compactPlace(nameOf(feature));
+    if (name && current.names.length < 3 && !current.names.includes(name)) current.names.push(name);
+    summary.set(category, current);
+  }
+  return [...summary.values()].sort((left, right) => right.count - left.count || left.category.localeCompare(right.category));
+}
+
+function routeContextForRoute(
+  route: OdRouteLensRoute | null,
+  stations: StationInfraMetricRecord[],
+  pois: ServiceContextPoiFeature[],
+  landuseFeatures: ServiceLanduseFeature[],
+) {
+  const midpoint = routeLensMidpoint(route);
+  const samples = routeLensSamplePoints(route);
+  if (!midpoint || samples.length === 0) {
+    return {
+      nearbyStations: [] as NearbyStation[],
+      poiSummary: [] as Array<CategorySummary<PoiCategory>>,
+      landuseSummary: [] as Array<CategorySummary<LanduseCategory>>,
+    };
+  }
+
+  const nearbyStations = stations
+    .map((station) => ({
+      ...station,
+      distanceM: minimumDistanceToSamples(station.lon, station.lat, samples),
+    }))
+    .sort((left, right) => left.distanceM - right.distanceM)
+    .slice(0, 5);
+
+  const nearbyPois = pois
+    .map((feature) => ({
+      feature,
+      distanceM: minimumDistanceToSamples(feature.geometry.coordinates[0], feature.geometry.coordinates[1], samples),
+    }))
+    .filter((item) => item.distanceM <= 380)
+    .sort((left, right) => left.distanceM - right.distanceM)
+    .slice(0, 48)
+    .map((item) => item.feature);
+
+  const nearbyLanduse = landuseFeatures
+    .map((feature) => {
+      const centroid = featureCentroid(feature);
+      return {
+        feature,
+        distanceM: centroid ? minimumDistanceToSamples(centroid.lon, centroid.lat, samples) : Number.POSITIVE_INFINITY,
+      };
+    })
+    .filter((item) => item.distanceM <= 620)
+    .sort((left, right) => left.distanceM - right.distanceM)
+    .slice(0, 28)
+    .map((item) => item.feature);
+
+  return {
+    nearbyStations,
+    poiSummary: summarizeCategories(nearbyPois, (feature) => feature.properties.category, (feature) => feature.properties.name),
+    landuseSummary: summarizeCategories(nearbyLanduse, (feature) => feature.properties.category, (feature) => feature.properties.name),
+  };
+}
+
+type RouteLensPanelProps = {
+  selectedRoute: OdRouteLensRoute | null;
+  lensLoading: boolean;
+  lensError: string | null;
+  floating?: boolean;
+  nearbyStations: NearbyStation[];
+  poiSummary: Array<CategorySummary<PoiCategory>>;
+  landuseSummary: Array<CategorySummary<LanduseCategory>>;
+  onClear: () => void;
+};
+
+function RouteLensPanel({
+  selectedRoute,
+  lensLoading,
+  lensError,
+  floating = false,
+  nearbyStations,
+  poiSummary,
+  landuseSummary,
+  onClear,
+}: RouteLensPanelProps) {
+  if (!selectedRoute) {
+    return (
+      <aside className="map-review-route-lens map-review-route-lens--empty" aria-label="Route lens details">
+        <p className="map-review-route-lens-kicker">Route Lens</p>
+        <h3>Click a route corridor.</h3>
+        <p>
+          The panel locks onto a full inferred OD route, then summarises its demand, rank, nearby stations and
+          surrounding urban context.
+        </p>
+        {lensLoading ? <p className="map-review-route-lens-status">Loading OD corridors...</p> : null}
+        {lensError ? <p className="map-review-route-lens-status map-review-route-lens-status--error">{lensError}</p> : null}
+      </aside>
+    );
+  }
+
+  return (
+    <aside
+      className={floating ? "map-review-route-lens map-review-route-lens--floating" : "map-review-route-lens"}
+      aria-label="Selected OD route details"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="map-review-route-lens-header">
+        <div>
+          <p className="map-review-route-lens-kicker">Selected OD corridor</p>
+          <h3>{compactPlace(selectedRoute.origin)} to {compactPlace(selectedRoute.destination)}</h3>
+        </div>
+        <button type="button" onClick={onClear}>Clear</button>
+      </div>
+
+      <dl className="map-review-route-lens-grid">
+        <div>
+          <dt>Trips per profile day</dt>
+          <dd>{formatPrecise(selectedRoute.averageDailyTrips)}</dd>
+        </div>
+        <div>
+          <dt>Slice rank</dt>
+          <dd>#{selectedRoute.rank.toLocaleString("en-GB")}</dd>
+        </div>
+        <div>
+          <dt>Predicted distance</dt>
+          <dd>{formatDistance(selectedRoute.distanceM)}</dd>
+        </div>
+        <div>
+          <dt>Typical duration</dt>
+          <dd>{selectedRoute.durationMin.toFixed(1)} min</dd>
+        </div>
+      </dl>
+
+      <section className="map-review-route-lens-block">
+        <h4>Route identity</h4>
+        <div className="map-review-route-lens-chips">
+          <span>Strength {formatPercent(selectedRoute.strength)}</span>
+          <span>{selectedRoute.visualTier}</span>
+          <span>{selectedRoute.routeEdgeCount.toLocaleString("en-GB")} street segments</span>
+          <span>{selectedRoute.coordinateCount.toLocaleString("en-GB")} path points</span>
+        </div>
+      </section>
+
+      <section className="map-review-route-lens-block">
+        <h4>Nearby stations</h4>
+        <div className="map-review-route-lens-list">
+          {nearbyStations.map((station) => (
+            <span key={station.stationId}>{compactPlace(station.name)} · {formatDistance(station.distanceM)}</span>
+          ))}
+        </div>
+      </section>
+
+      <section className="map-review-route-lens-block">
+        <h4>POI context</h4>
+        <div className="map-review-route-lens-chips">
+          {poiSummary.length ? poiSummary.slice(0, 6).map((item) => (
+            <span key={item.category} className={`map-review-context-chip map-review-context-chip--poi-${item.category}`}>
+              {poiLabels[item.category]} · {item.count}
+            </span>
+          )) : <span className="map-review-route-lens-muted">No nearby POI category within the lens radius.</span>}
+        </div>
+      </section>
+
+      <section className="map-review-route-lens-block">
+        <h4>Land-use context</h4>
+        <div className="map-review-route-lens-chips">
+          {landuseSummary.length ? landuseSummary.slice(0, 5).map((item) => (
+            <span key={item.category} className={`map-review-context-chip map-review-context-chip--landuse-${item.category}`}>
+              {landuseLabels[item.category]} · {item.count}
+            </span>
+          )) : <span className="map-review-route-lens-muted">No classified land-use polygon near the selected corridor.</span>}
+        </div>
+      </section>
+    </aside>
+  );
+}
+
+type StoryMapLegendProps = {
+  colorMode: RouteColorMode;
+};
+
+function StoryMapLegend({ colorMode }: StoryMapLegendProps) {
+  return (
+    <aside className="map-review-story-legend" aria-label="Guided story map legend">
+      <div className="map-review-explore-legend-section">
+        <strong>Map layers</strong>
+        <span><i className="map-review-legend-line map-review-legend-line--corridor" />clickable OD corridor</span>
+        {colorMode === "intensity" ? <span><i className="map-review-legend-ramp" />low to high route intensity</span> : null}
+        <span><i className="map-review-legend-swatch map-review-legend-landuse--commercial" />OSM land-use context</span>
+      </div>
+    </aside>
+  );
+}
+
+type StoryRoutePanelProps = {
+  route: OdRouteLensRoute;
+  onClear: () => void;
+};
+
+function StoryRoutePanel({ route, onClear }: StoryRoutePanelProps) {
+  return (
+    <aside
+      className="map-review-route-lens map-review-route-lens--floating map-review-route-lens--story"
+      aria-label="Guided story selected route"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="map-review-route-lens-header">
+        <div>
+          <p className="map-review-route-lens-kicker">Story route</p>
+          <h3>{compactPlace(route.origin)} to {compactPlace(route.destination)}</h3>
+        </div>
+        <button type="button" onClick={onClear}>Clear</button>
+      </div>
+      <dl className="map-review-route-lens-grid">
+        <div>
+          <dt>Trips per profile day</dt>
+          <dd>{formatPrecise(route.averageDailyTrips)}</dd>
+        </div>
+        <div>
+          <dt>Slice rank</dt>
+          <dd>#{route.rank.toLocaleString("en-GB")}</dd>
+        </div>
+        <div>
+          <dt>Distance</dt>
+          <dd>{formatDistance(route.distanceM)}</dd>
+        </div>
+        <div>
+          <dt>Strength</dt>
+          <dd>{formatPercent(route.strength)}</dd>
+        </div>
+      </dl>
+    </aside>
+  );
+}
+
+type ContextFeaturePanelProps = {
+  selected: SelectedContextFeature;
+  onClear: () => void;
+};
+
+function ContextFeaturePanel({ selected, onClear }: ContextFeaturePanelProps) {
+  const isPoi = selected.kind === "poi";
+  const feature = selected.feature;
+  const title = compactPlace(String(feature.properties.name || (isPoi ? poiLabels[feature.properties.category as PoiCategory] : landuseLabels[feature.properties.category as LanduseCategory])));
+  const categoryLabel = isPoi
+    ? poiLabels[(feature as ServiceContextPoiFeature).properties.category]
+    : landuseLabels[(feature as ServiceLanduseFeature).properties.category];
+  const osmId = feature.properties.osmId ? `${feature.properties.osmType ?? "OSM"} ${feature.properties.osmId}` : "OSM context";
+
+  return (
+    <aside
+      className="map-review-route-lens map-review-route-lens--floating map-review-context-panel"
+      aria-label="Selected map context feature"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="map-review-route-lens-header">
+        <div>
+          <p className="map-review-route-lens-kicker">{isPoi ? "Selected POI" : "Selected land use"}</p>
+          <h3>{title}</h3>
+        </div>
+        <button type="button" onClick={onClear}>Clear</button>
+      </div>
+      <dl className="map-review-route-lens-grid">
+        <div>
+          <dt>Category</dt>
+          <dd>{categoryLabel}</dd>
+        </div>
+        <div>
+          <dt>Source</dt>
+          <dd>{osmId}</dd>
+        </div>
+        {!isPoi && typeof (feature as ServiceLanduseFeature).properties.area === "number" ? (
+          <div>
+            <dt>Polygon area</dt>
+            <dd>{Math.round((feature as ServiceLanduseFeature).properties.area ?? 0).toLocaleString("en-GB")} m²</dd>
+          </div>
+        ) : null}
+      </dl>
+    </aside>
+  );
+}
+
+type ExploreMapLegendProps = {
+  layers: ExploreLayerState;
+  colorMode: RouteColorMode;
+};
+
+function ExploreMapLegend({ layers, colorMode }: ExploreMapLegendProps) {
+  return (
+    <aside className="map-review-explore-legend" aria-label="Explore map legend">
+      <div className="map-review-explore-legend-section">
+        <strong>Route lens</strong>
+        <span><i className="map-review-legend-line map-review-legend-line--segment" />street-use texture</span>
+        <span><i className="map-review-legend-line map-review-legend-line--corridor" />clickable OD corridor</span>
+        {colorMode === "intensity" ? <span><i className="map-review-legend-ramp" />low to high intensity</span> : null}
+      </div>
+      {layers.hotspots || layers.stations ? (
+        <div className="map-review-explore-legend-section">
+          <strong>Activity</strong>
+          {layers.hotspots ? <span><i className="map-review-legend-dot map-review-legend-dot--hotspot" />hourly hotspot</span> : null}
+          {layers.stations ? <span><i className="map-review-legend-dot map-review-legend-dot--station" />bike station</span> : null}
+        </div>
+      ) : null}
+      {layers.poi ? (
+        <div className="map-review-explore-legend-section">
+          <strong>POI</strong>
+          <div className="map-review-explore-legend-grid">
+            {poiLegendCategories.map((category) => (
+              <span key={category}><i className={`map-review-legend-dot map-review-legend-poi--${category}`} />{poiLabels[category]}</span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {layers.landuse ? (
+        <div className="map-review-explore-legend-section">
+          <strong>Land use</strong>
+          <div className="map-review-explore-legend-grid">
+            {landuseLegendCategories.map((category) => (
+              <span key={category}><i className={`map-review-legend-swatch map-review-legend-landuse--${category}`} />{landuseLabels[category]}</span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </aside>
+  );
 }
 
 function buildMiniRhythmGeometry(slices: RouteFlowSlice[], activeHour: number) {
@@ -537,83 +943,6 @@ function StepEvidenceCard({ step, summary, profileSlices }: StepEvidenceCardProp
   );
 }
 
-type ProjectedAnchor = DisplayAnchor & {
-  x: number;
-  y: number;
-  size: number;
-  opacity: number;
-};
-
-type HoverTarget = ProjectedAnchor & {
-  hoverRadius: number;
-  priority: number;
-};
-
-type ProjectedGreenspace = GreenSpaceFeature["properties"] & {
-  points: string;
-};
-
-function hoverAnchorPriority(anchor: DisplayAnchor) {
-  const category = anchor.category ?? "";
-  let priority = anchor.weight ?? 0;
-  if (/Functional district|Functional zone|Leisure district|Riverfront district/i.test(category)) priority += 0.5;
-  if (/Nightlife|Park access|Institutional anchor|Rail terminal/i.test(category)) priority += 0.18;
-  return priority;
-}
-
-function anchorVisualSize(anchor: DisplayAnchor) {
-  return Math.round(anchor.source === "manual"
-    ? 8 + (anchor.weight ?? 1) * 11
-    : 3.2 + (anchor.weight ?? 1) * 5.8);
-}
-
-function anchorVisualOpacity(anchor: DisplayAnchor) {
-  return anchor.source === "manual" ? 0.76 : 0.48;
-}
-
-function isGreenSpacePayload(payload: unknown): payload is GreenSpaceFeatureCollection {
-  if (!payload || typeof payload !== "object") return false;
-  const candidate = payload as Partial<GreenSpaceFeatureCollection>;
-  return candidate.type === "FeatureCollection" && Array.isArray(candidate.features);
-}
-
-function exteriorRings(geometry: GreenSpaceFeature["geometry"]): number[][][] {
-  if (geometry.type === "Polygon") {
-    return [(geometry.coordinates as number[][][])[0]].filter(Boolean);
-  }
-  if (geometry.type !== "MultiPolygon") return [];
-  return (geometry.coordinates as number[][][][])
-    .map((polygon) => polygon[0])
-    .filter(Boolean);
-}
-
-function resolveHoverTarget(
-  x: number,
-  y: number,
-  targets: HoverTarget[],
-  currentId: string | null,
-) {
-  let best: HoverTarget | null = null;
-  let bestScore = Number.POSITIVE_INFINITY;
-
-  for (const target of targets) {
-    const distance = Math.hypot(target.x - x, target.y - y);
-    if (distance > target.hoverRadius) continue;
-    const score = distance - target.priority * 0.75;
-    if (score < bestScore) {
-      best = target;
-      bestScore = score;
-    }
-  }
-
-  if (best) return best;
-
-  const current = currentId ? targets.find((target) => target.id === currentId) ?? null : null;
-  if (!current) return null;
-  const currentDistance = Math.hypot(current.x - x, current.y - y);
-  return currentDistance <= current.hoverRadius + 5 ? current : null;
-}
-
 export function MapReviewPage() {
   const [searchParams] = useSearchParams();
   const explicitProfileId = normalizeProfile(searchParams.get("profile"));
@@ -632,11 +961,16 @@ export function MapReviewPage() {
   } = useHourlyFlows();
   const [exploreProfileId, setExploreProfileId] = useState<StoryProfileId>("weekdays");
   const [exploreHour, setExploreHour] = useState(13);
-  const [exploreLayer, setExploreLayer] = useState<ExploreLayer>("routes");
+  const [exploreLayers, setExploreLayers] = useState<ExploreLayerState>(defaultExploreLayers);
+  const [storyRouteColorMode, setStoryRouteColorMode] = useState<RouteColorMode>("intensity");
+  const [exploreRouteColorMode, setExploreRouteColorMode] = useState<RouteColorMode>("intensity");
+  const [selectedStoryOdRouteId, setSelectedStoryOdRouteId] = useState<string | null>(null);
+  const [hoveredStoryOdRouteId, setHoveredStoryOdRouteId] = useState<string | null>(null);
+  const [selectedOdRouteId, setSelectedOdRouteId] = useState<string | null>(null);
+  const [hoveredOdRouteId, setHoveredOdRouteId] = useState<string | null>(null);
+  const [selectedContextFeature, setSelectedContextFeature] = useState<SelectedContextFeature | null>(null);
   const [activeStepId, setActiveStepId] = useState(defaultStep.id);
   const activeStepIdRef = useRef(defaultStep.id);
-  const [hoveredAnchorId, setHoveredAnchorId] = useState<string | null>(null);
-  const [greenspaces, setGreenspaces] = useState<GreenSpaceFeature[]>([]);
   const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
   const [projectionVersion, setProjectionVersion] = useState(0);
   const stepRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -658,6 +992,7 @@ export function MapReviewPage() {
     prefetchAll: false,
     prefetchSlices: storyRoutePrefetchSlices,
   });
+  const storyOdRouteLens = useOdRouteLens(activeStep.profileId, activeStep.hour);
   const {
     ready: exploreRouteReady,
     activeSliceReady: exploreRouteSliceReady,
@@ -665,6 +1000,19 @@ export function MapReviewPage() {
     maxAverageDailyTrips: exploreMaxAverageDailyTrips,
     getSlice: getExploreRouteSlice,
   } = useRouteFlows(exploreProfileId, exploreHour, { prefetchAll: false });
+  const odRouteLens = useOdRouteLens(exploreProfileId, exploreHour);
+  const serviceContext = useServiceContext();
+
+  useEffect(() => {
+    setSelectedStoryOdRouteId(null);
+    setHoveredStoryOdRouteId(null);
+  }, [activeStep.hour, activeStep.profileId]);
+
+  useEffect(() => {
+    setSelectedOdRouteId(null);
+    setHoveredOdRouteId(null);
+    setSelectedContextFeature(null);
+  }, [exploreHour, exploreProfileId]);
 
   const stepSummaries = useMemo(() => {
     const entries = reviewSteps.map((step) => {
@@ -677,81 +1025,15 @@ export function MapReviewPage() {
   }, [getHourlySlice, getRouteSlice]);
 
   const activeSummary = stepSummaries[activeStep.id];
+  const storyUsesOdLens = Boolean(storyOdRouteLens.slice?.routes.length);
   const routeProfilesById = useMemo(() => {
     return Object.fromEntries(
       routeData.profiles.map((profile) => [profile.id, profile.hourSlices]),
     ) as Partial<Record<StoryProfileId, RouteFlowSlice[]>>;
   }, [routeData.profiles]);
-  const manualFunctionAnchors = stepFunctionAnchors[activeStep.id] ?? [];
-  const activeFunctionAnchors = useMemo<DisplayAnchor[]>(() => {
-    const baseAnchors = manualFunctionAnchors.map((anchor) => ({
-      ...anchor,
-      label: compactPlace(anchor.label),
-      source: "manual" as const,
-    }));
-    const hotspots = activeSummary?.hourlySlice.hotspots ?? [];
-    const hotspotMax = Math.max(...hotspots.map((hotspot) => hotspot.act), 1);
-    const hotspotAnchors = hotspots
-      .filter((hotspot) => {
-        return baseAnchors.every((anchor) => squaredDistance(anchor.lon, anchor.lat, hotspot.lon, hotspot.lat) > 0.000018);
-      })
-      .slice(0, 72)
-      .map((hotspot, index) => ({
-        id: `${activeStep.id}-hotspot-${index}`,
-        label: compactPlace(hotspot.name),
-        lon: hotspot.lon,
-        lat: hotspot.lat,
-        tone: inferHotspotTone(activeStep.id, hotspot, baseAnchors),
-        weight: 0.34 + Math.sqrt(hotspot.act / hotspotMax) * 0.42,
-        category: "Docking station hotspot",
-        description: `${activeTrack.label} ${activeStep.timeLabel} active docking station`,
-        evidence: `${hotspot.act.toLocaleString("en-GB")} total arrivals and departures in the retained hourly slice.`,
-        source: "hotspot" as const,
-        activity: hotspot.act,
-      }));
-
-    return [...baseAnchors, ...hotspotAnchors];
-  }, [activeStep.id, activeStep.timeLabel, activeSummary, activeTrack.label, manualFunctionAnchors]);
   const handleMapReady = useCallback((map: MapLibreMap | null) => {
     setMapInstance(map);
   }, []);
-
-  const projectedFunctionAnchors = useMemo(() => {
-    if (!mapInstance || !mapPaneRef.current) return [];
-
-    const width = mapPaneRef.current.clientWidth;
-    const height = mapPaneRef.current.clientHeight;
-
-    return activeFunctionAnchors
-      .map((anchor) => {
-        const point = mapInstance.project([anchor.lon, anchor.lat]);
-        return {
-          ...anchor,
-          x: Math.round(point.x),
-          y: Math.round(point.y),
-          size: anchorVisualSize(anchor),
-          opacity: anchorVisualOpacity(anchor),
-        };
-      })
-      .filter((anchor) => anchor.x > -28 && anchor.x < width + 28 && anchor.y > -28 && anchor.y < height + 28);
-  }, [activeFunctionAnchors, mapInstance, projectionVersion]);
-
-  const projectedHoverTargets = useMemo<HoverTarget[]>(() => {
-    return projectedFunctionAnchors
-      .map((anchor) => ({
-        ...anchor,
-        hoverRadius: anchor.source === "manual"
-          ? Math.max(anchor.size * 0.5 + 14, 18)
-          : Math.max(anchor.size * 0.5 + 8, 11),
-        priority: hoverAnchorPriority(anchor) - (anchor.source === "hotspot" ? 0.4 : 0),
-      }))
-      .sort((left, right) => right.priority - left.priority);
-  }, [projectedFunctionAnchors]);
-
-  const hoveredAnchor = useMemo(
-    () => projectedHoverTargets.find((anchor) => anchor.id === hoveredAnchorId) ?? null,
-    [hoveredAnchorId, projectedHoverTargets],
-  );
 
   const projectedAreaLabels = useMemo(() => {
     if (!mapInstance || !mapPaneRef.current) return [];
@@ -769,26 +1051,6 @@ export function MapReviewPage() {
       .filter((label) => label.x > 12 && label.x < width - 12 && label.y > 12 && label.y < height - 12);
   }, [activeStep.id, mapInstance, projectionVersion]);
 
-  const projectedGreenspaces = useMemo<ProjectedGreenspace[]>(() => {
-    if (!mapInstance || !mapPaneRef.current) return [];
-    const retainedIds = new Set(stepGreenspaceIds[activeStep.id] ?? []);
-    if (retainedIds.size === 0) return [];
-
-    return greenspaces
-      .filter((feature) => retainedIds.has(feature.properties.id))
-      .flatMap((feature) => exteriorRings(feature.geometry).map((ring, index) => ({
-        ...feature.properties,
-        points: ring
-          .map(([lon, lat]) => {
-            const point = mapInstance.project([lon, lat]);
-            return `${Math.round(point.x)},${Math.round(point.y)}`;
-          })
-          .join(" "),
-        id: `${feature.properties.id}-${index}`,
-      })))
-      .filter((feature) => feature.points.length > 0);
-  }, [activeStep.id, greenspaces, mapInstance, projectionVersion]);
-
   useEffect(() => {
     if (!queryStep) return;
     setActiveStepId(queryStep.id);
@@ -801,16 +1063,6 @@ export function MapReviewPage() {
   }, [activeStepId]);
 
   useEffect(() => {
-    setHoveredAnchorId(null);
-  }, [activeStep.id]);
-
-  useEffect(() => {
-    if (hoveredAnchorId && !projectedHoverTargets.some((anchor) => anchor.id === hoveredAnchorId)) {
-      setHoveredAnchorId(null);
-    }
-  }, [hoveredAnchorId, projectedHoverTargets]);
-
-  useEffect(() => {
     if (captureMode || initialScrollHandledRef.current) return;
     initialScrollHandledRef.current = true;
     if ("scrollRestoration" in window.history) {
@@ -820,26 +1072,6 @@ export function MapReviewPage() {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     });
   }, [captureMode]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`${import.meta.env.BASE_URL}data/service_greenspaces.geojson`)
-      .then((response) => {
-        if (!response.ok) throw new Error(`Failed to load greenspaces: ${response.status}`);
-        return response.json();
-      })
-      .then((payload) => {
-        if (cancelled || !isGreenSpacePayload(payload)) return;
-        setGreenspaces(payload.features);
-      })
-      .catch(() => {
-        if (!cancelled) setGreenspaces([]);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!mapInstance) return undefined;
@@ -939,55 +1171,42 @@ export function MapReviewPage() {
       viewMode: "routes" as const,
       flows: [] as HourlyFlow[],
       hotspots: [],
-      routeEdges: activeSummary.routeSlice.edges,
+      routeEdges: storyUsesOdLens ? [] : activeSummary.routeSlice.edges,
       activeFlowProfileId: activeStep.profileId as StoryProfileId,
       globalFlowMax: 1,
     };
-  }, [activeStep.profileId, activeSummary]);
+  }, [activeStep.profileId, activeSummary, storyUsesOdLens]);
 
   const weekdayHourlyProfile = getHourlyProfile("weekdays");
   const weekendHourlyProfile = getHourlyProfile("weekends");
   const exploreHourlySlice = getHourlySlice(exploreProfileId, exploreHour);
   const exploreRouteSlice = getExploreRouteSlice(exploreProfileId, exploreHour);
+  const exploreUsesOdLens = exploreLayers.routes && Boolean(odRouteLens.slice?.routes.length);
   const exploreMapProps = useMemo(() => {
-    if (exploreLayer === "routes") {
-      return {
-        viewMode: "routes" as const,
-        flows: [] as HourlyFlow[],
-        hotspots: exploreHourlySlice.hotspots.slice(0, 24),
-        routeEdges: exploreRouteSlice.edges,
-        routeDisplayMode: "all" as const,
-        routeFlowMax: exploreMaxAverageDailyTrips,
-      };
-    }
     return {
-      viewMode: "hotspots" as const,
+      viewMode: "routes" as const,
       flows: [] as HourlyFlow[],
-      hotspots: exploreHourlySlice.hotspots,
-      routeEdges: [] as typeof exploreRouteSlice.edges,
-      routeDisplayMode: "hierarchy" as const,
+      hotspots: exploreLayers.hotspots ? exploreHourlySlice.hotspots : [],
+      routeEdges: exploreLayers.routes && !exploreUsesOdLens ? exploreRouteSlice.edges : [],
+      routeDisplayMode: "all" as const,
       routeFlowMax: exploreMaxAverageDailyTrips,
     };
-  }, [exploreHourlySlice, exploreLayer, exploreMaxAverageDailyTrips, exploreRouteSlice.edges]);
+  }, [exploreHourlySlice.hotspots, exploreLayers.hotspots, exploreLayers.routes, exploreMaxAverageDailyTrips, exploreRouteSlice.edges, exploreUsesOdLens]);
+
+  const selectedOdRoute = useMemo(() => {
+    if (!selectedOdRouteId) return null;
+    return odRouteLens.slice?.routes.find((route) => route.id === selectedOdRouteId) ?? null;
+  }, [odRouteLens.slice?.routes, selectedOdRouteId]);
+  const selectedStoryOdRoute = useMemo(() => {
+    if (!selectedStoryOdRouteId) return null;
+    return storyOdRouteLens.slice?.routes.find((route) => route.id === selectedStoryOdRouteId) ?? null;
+  }, [selectedStoryOdRouteId, storyOdRouteLens.slice?.routes]);
+  const selectedRouteContext = useMemo(
+    () => routeContextForRoute(selectedOdRoute, storyData.stationMetrics, serviceContext.pois, serviceContext.landuse),
+    [selectedOdRoute, serviceContext.landuse, serviceContext.pois, storyData.stationMetrics],
+  );
 
   const mapFocusBounds = useMemo(() => null, []);
-  const tooltipPlacement = useMemo(() => {
-    if (!hoveredAnchor || !mapPaneRef.current) return null;
-    const paneWidth = mapPaneRef.current.clientWidth;
-    const tooltipWidth = Math.min(276, paneWidth - 28);
-    const halfWidth = tooltipWidth / 2;
-    const left = Math.max(halfWidth + 14, Math.min(hoveredAnchor.x, paneWidth - halfWidth - 14));
-    const flipBelow = hoveredAnchor.y < 198;
-    const pointerX = Math.max(22, Math.min(hoveredAnchor.x - (left - halfWidth), tooltipWidth - 22));
-
-    return {
-      left,
-      top: hoveredAnchor.y,
-      width: tooltipWidth,
-      flipBelow,
-      pointerX,
-    };
-  }, [hoveredAnchor]);
 
   if (routeError || hourlyError) {
     return (
@@ -1015,22 +1234,42 @@ export function MapReviewPage() {
     stepRefs.current[stepId]?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function handleAnchorLayerPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - bounds.left;
-    const y = event.clientY - bounds.top;
-    const next = resolveHoverTarget(x, y, projectedHoverTargets, hoveredAnchorId);
-    const nextId = next?.id ?? null;
-
-    setHoveredAnchorId((current) => (current === nextId ? current : nextId));
+  function toggleExploreLayer(layerId: ExploreLayerId) {
+    setExploreLayers((current) => {
+      if (layerId === "routes" && current.routes) return current;
+      return {
+        ...current,
+        [layerId]: !current[layerId],
+        routes: layerId === "routes" ? true : current.routes,
+      };
+    });
   }
 
-  function handleAnchorLayerPointerLeave() {
-    setHoveredAnchorId(null);
+  function handleStoryOdRouteClick(route: OdRouteLensRoute | null) {
+    setSelectedStoryOdRouteId(route?.id ?? null);
   }
 
-  function tooltipToneClass(anchor: FunctionAnchor) {
-    return `map-review-tooltip--${anchor.tone}`;
+  function handleStoryOdRouteHover(route: OdRouteLensRoute | null) {
+    setHoveredStoryOdRouteId((current) => (current === (route?.id ?? null) ? current : route?.id ?? null));
+  }
+
+  function handleExploreOdRouteClick(route: OdRouteLensRoute | null) {
+    setSelectedOdRouteId(route?.id ?? null);
+    setSelectedContextFeature(null);
+  }
+
+  function handleExploreOdRouteHover(route: OdRouteLensRoute | null) {
+    setHoveredOdRouteId((current) => (current === (route?.id ?? null) ? current : route?.id ?? null));
+  }
+
+  function handleExplorePoiClick(feature: ServiceContextPoiFeature | null) {
+    setSelectedContextFeature(feature ? { kind: "poi", feature } : null);
+    setSelectedOdRouteId(null);
+  }
+
+  function handleExploreLanduseClick(feature: ServiceLanduseFeature | null) {
+    setSelectedContextFeature(feature ? { kind: "landuse", feature } : null);
+    setSelectedOdRouteId(null);
   }
 
   const panelLabel = `${activeTrack.label} ${activeStep.timeLabel}`;
@@ -1206,43 +1445,41 @@ export function MapReviewPage() {
             globalFlowMax={mapProps.globalFlowMax}
             routeFlowMax={maxAverageDailyTrips}
             routeDisplayMode="all"
+            routeColorMode={storyRouteColorMode}
+            selectedOdRouteId={selectedStoryOdRouteId}
+            hoveredOdRouteId={hoveredStoryOdRouteId}
+            odRouteLensRoutes={storyOdRouteLens.slice?.routes ?? []}
+            showOdRouteLens={storyUsesOdLens}
+            odRouteLensVariant="story"
             focusBounds={mapFocusBounds}
             functionAnchors={[]}
+            showStationsOverlay={false}
+            showStationBackdrop={false}
+            contextPois={[]}
+            landuseFeatures={serviceContext.landuse}
+            showPoiLayer={false}
+            showLanduseLayer={true}
+            onOdRouteHover={handleStoryOdRouteHover}
+            onOdRouteClick={handleStoryOdRouteClick}
             onMapReady={handleMapReady}
           />
-          <div className="map-review-wash" />
-          {projectedGreenspaces.length > 0 ? (
-            <svg className="map-review-zone-layer" aria-hidden="true">
-              {projectedGreenspaces.map((zone) => (
-                <polygon
-                  key={zone.id}
-                  className="map-review-zone map-review-zone--park"
-                  points={zone.points}
-                />
-              ))}
-            </svg>
-          ) : null}
-
-          <div
-            className={hoveredAnchor ? "map-review-anchor-layer map-review-anchor-layer--hovering" : "map-review-anchor-layer"}
-            onPointerMove={handleAnchorLayerPointerMove}
-            onPointerLeave={handleAnchorLayerPointerLeave}
-          >
-            {projectedFunctionAnchors.map((anchor) => (
-              <span
-                key={anchor.id}
-                className={`map-review-anchor map-review-anchor--${anchor.tone} map-review-anchor--${anchor.source}`}
-                style={{
-                  left: `${anchor.x}px`,
-                  top: `${anchor.y}px`,
-                  width: `${anchor.size}px`,
-                  height: `${anchor.size}px`,
-                  opacity: anchor.opacity,
-                }}
-                aria-hidden="true"
-              />
+          <div className="map-review-story-route-toggle" aria-label="Guided story route colour">
+            <span>Route colour</span>
+            {(["unified", "intensity"] as RouteColorMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={storyRouteColorMode === mode ? "map-review-story-route-button map-review-story-route-button--active" : "map-review-story-route-button"}
+                onClick={() => setStoryRouteColorMode(mode)}
+                aria-pressed={storyRouteColorMode === mode}
+              >
+                {mode === "unified" ? "Unified" : "Intensity"}
+              </button>
             ))}
-
+          </div>
+          <StoryMapLegend colorMode={storyRouteColorMode} />
+          <div className="map-review-wash" />
+          <div className="map-review-area-label-layer" aria-hidden="true">
             {projectedAreaLabels.map((label) => (
               <span
                 key={label.id}
@@ -1262,36 +1499,11 @@ export function MapReviewPage() {
             <div className="map-review-map-label map-review-map-label--slice">{panelLabel}</div>
           </div>
 
-          {hoveredAnchor && tooltipPlacement ? (
-            <aside
-              className={[
-                "map-review-tooltip",
-                hoveredAnchor.source === "hotspot" ? "map-review-tooltip--compact" : "",
-                tooltipToneClass(hoveredAnchor),
-                tooltipPlacement.flipBelow ? "map-review-tooltip--below" : "",
-              ].filter(Boolean).join(" ")}
-              style={{
-                left: tooltipPlacement.left,
-                top: tooltipPlacement.top,
-                width: tooltipPlacement.width,
-                ["--tooltip-pointer-x" as string]: `${tooltipPlacement.pointerX}px`,
-              }}
-            >
-              <h3>{hoveredAnchor.label}</h3>
-              <div className="map-review-tooltip-rule" />
-              {hoveredAnchor.category ? (
-                <p className="map-review-tooltip-category">{hoveredAnchor.category}</p>
-              ) : null}
-              {hoveredAnchor.description ? (
-                <p><strong>Role:</strong> {hoveredAnchor.description}</p>
-              ) : null}
-              {hoveredAnchor.source === "manual" && hoveredAnchor.evidence ? (
-                <p><strong>Evidence:</strong> {hoveredAnchor.evidence}</p>
-              ) : null}
-              {hoveredAnchor.source === "hotspot" && hoveredAnchor.activity ? (
-                <p><strong>Activity:</strong> {hoveredAnchor.activity.toLocaleString("en-GB")} arrivals and departures in this hourly slice.</p>
-              ) : null}
-            </aside>
+          {selectedStoryOdRoute ? (
+            <StoryRoutePanel
+              route={selectedStoryOdRoute}
+              onClear={() => setSelectedStoryOdRouteId(null)}
+            />
           ) : null}
         </section>
       </div>
@@ -1301,8 +1513,8 @@ export function MapReviewPage() {
           <p className="map-review-kicker">Free Exploration</p>
           <h2 id="map-review-explore-title">Explore the system yourself.</h2>
           <p>
-            After the guided story, keep the same map grammar and test other hours directly. Switch the day profile,
-            scrub through the 24-hour cycle, and compare inferred routes with hourly docking hotspots.
+            After the guided story, use the map as a route lens. Choose a profile and hour, then click a full OD
+            corridor to inspect its predicted route, intensity and nearby service context.
           </p>
 
           <div className="map-review-explore-controls" aria-label="Free exploration controls">
@@ -1335,16 +1547,34 @@ export function MapReviewPage() {
             </label>
 
             <div className="map-review-control-group">
-              <span>Layer</span>
+              <span>Layers</span>
               <div className="map-review-control-buttons">
                 {exploreLayerOptions.map((option) => (
                   <button
                     key={option.id}
                     type="button"
-                    className={exploreLayer === option.id ? "map-review-control-button map-review-control-button--active" : "map-review-control-button"}
-                    onClick={() => setExploreLayer(option.id)}
+                    className={exploreLayers[option.id] ? "map-review-control-button map-review-control-button--active" : "map-review-control-button"}
+                    onClick={() => toggleExploreLayer(option.id)}
+                    aria-pressed={exploreLayers[option.id]}
                   >
                     {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="map-review-control-group">
+              <span>Route colour</span>
+              <div className="map-review-control-buttons">
+                {(["unified", "intensity"] as RouteColorMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={exploreRouteColorMode === mode ? "map-review-control-button map-review-control-button--active" : "map-review-control-button"}
+                    onClick={() => setExploreRouteColorMode(mode)}
+                    aria-pressed={exploreRouteColorMode === mode}
+                  >
+                    {mode === "unified" ? "Unified" : "Intensity ramp"}
                   </button>
                 ))}
               </div>
@@ -1353,24 +1583,51 @@ export function MapReviewPage() {
 
           <dl className="map-review-explore-metrics">
             <div>
-              <dt>Rides in hour</dt>
+              <dt>Trips per profile day</dt>
               <dd>{formatPrecise(exploreRouteSlice.averageDailyTrips || exploreHourlySlice.tripCount)}</dd>
             </div>
             <div>
-              <dt>Route segments</dt>
-              <dd>{exploreRouteSlice.edgeCount.toLocaleString("en-GB")}</dd>
+              <dt>OD corridors</dt>
+              <dd>{(odRouteLens.slice?.routeCount ?? 0).toLocaleString("en-GB")}</dd>
             </div>
             <div>
-              <dt>Hotspots</dt>
-              <dd>{exploreHourlySlice.hotspots.length.toLocaleString("en-GB")}</dd>
+              <dt>Street segments</dt>
+              <dd>{exploreRouteSlice.edgeCount.toLocaleString("en-GB")}</dd>
             </div>
           </dl>
-          {exploreLayer === "routes" && (!exploreRouteReady || !exploreRouteSliceReady) ? (
+          {exploreLayers.routes && (!exploreRouteReady || !exploreRouteSliceReady) ? (
             <p className="map-review-explore-status">Loading the selected route slice...</p>
+          ) : null}
+          {exploreLayers.routes && odRouteLens.loading ? (
+            <p className="map-review-explore-status">Loading OD corridors...</p>
           ) : null}
           {exploreRouteError ? (
             <p className="map-review-explore-status map-review-explore-status--error">{exploreRouteError}</p>
           ) : null}
+          {odRouteLens.error ? (
+            <p className="map-review-explore-status map-review-explore-status--error">{odRouteLens.error}</p>
+          ) : null}
+          {serviceContext.error ? (
+            <p className="map-review-explore-status map-review-explore-status--error">{serviceContext.error}</p>
+          ) : null}
+
+          {selectedOdRoute ? (
+            <aside className="map-review-route-lens map-review-route-lens--empty" aria-label="Pinned route lens state">
+              <p className="map-review-route-lens-kicker">Route Lens</p>
+              <h3>Corridor pinned on the map.</h3>
+              <p>The detailed card now sits inside the map so the route and its context stay visually connected.</p>
+            </aside>
+          ) : (
+            <RouteLensPanel
+              selectedRoute={null}
+              lensLoading={odRouteLens.loading}
+              lensError={odRouteLens.error}
+              nearbyStations={[]}
+              poiSummary={[]}
+              landuseSummary={[]}
+              onClear={() => setSelectedOdRouteId(null)}
+            />
+          )}
         </div>
 
         <div className="map-review-explore-map" aria-label="Interactive free exploration map">
@@ -1390,13 +1647,51 @@ export function MapReviewPage() {
             globalFlowMax={globalFlowMax}
             routeFlowMax={exploreMapProps.routeFlowMax}
             routeDisplayMode={exploreMapProps.routeDisplayMode}
+            routeColorMode={exploreRouteColorMode}
+            selectedOdRouteId={selectedOdRouteId}
+            hoveredOdRouteId={hoveredOdRouteId}
+            odRouteLensRoutes={odRouteLens.slice?.routes ?? []}
+            showOdRouteLens={exploreLayers.routes}
+            odRouteLensVariant="explore"
             focusBounds={mapFocusBounds}
             functionAnchors={[]}
+            showHotspotsOverlay={exploreLayers.hotspots}
+            showStationsOverlay={exploreLayers.stations}
+            showStationBackdrop={exploreLayers.stations}
+            contextPois={serviceContext.pois}
+            landuseFeatures={serviceContext.landuse}
+            showPoiLayer={exploreLayers.poi}
+            showLanduseLayer={exploreLayers.landuse}
+            selectedPoiId={selectedContextFeature?.kind === "poi" ? selectedContextFeature.feature.properties.id : null}
+            selectedLanduseId={selectedContextFeature?.kind === "landuse" ? selectedContextFeature.feature.properties.id : null}
+            onOdRouteHover={handleExploreOdRouteHover}
+            onOdRouteClick={handleExploreOdRouteClick}
+            onPoiClick={handleExplorePoiClick}
+            onLanduseClick={handleExploreLanduseClick}
           />
           <div className="map-review-explore-map-label">
             {exploreProfileId === "all" ? "All days" : exploreProfileId === "weekdays" ? "Weekday" : "Weekend"} ·{" "}
-            {String(exploreHour).padStart(2, "0")}:00 · {exploreLayerOptions.find((option) => option.id === exploreLayer)?.label}
+            {String(exploreHour).padStart(2, "0")}:00 · {exploreRouteColorMode === "unified" ? "Unified route colour" : "Intensity ramp"}
           </div>
+          {selectedOdRoute ? (
+            <RouteLensPanel
+              selectedRoute={selectedOdRoute}
+              floating={true}
+              lensLoading={odRouteLens.loading}
+              lensError={odRouteLens.error}
+              nearbyStations={selectedRouteContext.nearbyStations}
+              poiSummary={selectedRouteContext.poiSummary}
+              landuseSummary={selectedRouteContext.landuseSummary}
+              onClear={() => setSelectedOdRouteId(null)}
+            />
+          ) : null}
+          {selectedContextFeature ? (
+            <ContextFeaturePanel
+              selected={selectedContextFeature}
+              onClear={() => setSelectedContextFeature(null)}
+            />
+          ) : null}
+          <ExploreMapLegend layers={exploreLayers} colorMode={exploreRouteColorMode} />
         </div>
       </section>
 
@@ -1410,14 +1705,15 @@ export function MapReviewPage() {
             <h3>Data</h3>
             <p>
               The project uses TfL Santander Cycles trip records, BikePoint station metadata, London borough
-              boundaries and an OSM-derived service-area street network.
+              boundaries, an OSM-derived service-area street network and OSM POI / land-use context.
             </p>
           </article>
           <article>
             <h3>Method</h3>
             <p>
               Route layers are inferred street-use allocations from OD pairs, station snapping and stochastic
-              distance-decay assignment. They are not observed GPS traces.
+              distance-decay assignment. Segment details expose the strongest assigned contributors for clickable
+              focus routes.
             </p>
           </article>
           <article>

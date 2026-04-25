@@ -1336,6 +1336,66 @@ body {
   pointer-events: none !important;
 }
 
+.map-review-story-route-toggle {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 9;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  padding: 0.42rem;
+  border: 1px solid rgba(188, 218, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(23, 35, 55, 0.38);
+  color: rgba(226, 239, 252, 0.7);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+.map-review-story-route-toggle span {
+  padding: 0 0.34rem 0 0.18rem;
+}
+
+.map-review-story-route-button {
+  border: 1px solid rgba(171, 211, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(9, 18, 33, 0.28);
+  color: rgba(234, 243, 255, 0.72);
+  padding: 0.34rem 0.52rem;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.map-review-story-route-button--active {
+  border-color: rgba(134, 239, 255, 0.72);
+  background: rgba(60, 186, 255, 0.2);
+  color: #f7fbff;
+}
+
+.map-review-story-legend {
+  position: absolute;
+  right: 1rem;
+  bottom: 4rem;
+  z-index: 8;
+  display: grid;
+  gap: 0.45rem;
+  width: min(18.5rem, calc(100% - 2rem));
+  padding: 0.72rem 0.82rem;
+  border: 1px solid rgba(201, 223, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(17, 27, 45, 0.46);
+  color: rgba(239, 247, 255, 0.78);
+  box-shadow: 0 18px 44px rgba(7, 13, 24, 0.18);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
 .map-review-kicker {
   margin: 0;
   color: rgba(134, 239, 255, 0.84);
@@ -1954,6 +2014,13 @@ body {
   background: rgba(226, 78, 179, 0.9);
 }
 
+.map-review-area-label-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
 .map-review-area-label {
   position: absolute;
   z-index: 7;
@@ -2168,6 +2235,234 @@ body {
   color: rgba(255, 214, 240, 0.9);
 }
 
+.map-review-route-lens {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid rgba(167, 202, 253, 0.16);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(104, 189, 255, 0.12), transparent 15rem),
+    rgba(9, 17, 31, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.map-review-route-lens--empty {
+  border-style: dashed;
+  background: rgba(9, 17, 31, 0.18);
+}
+
+.map-review-route-lens--floating {
+  position: absolute;
+  top: 3.95rem;
+  right: 1rem;
+  z-index: 7;
+  width: min(24rem, calc(100% - 2rem));
+  max-height: calc(100% - 10.5rem);
+  margin: 0;
+  overflow: auto;
+  border-color: rgba(212, 235, 255, 0.2);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(134, 239, 255, 0.13), transparent 13rem),
+    rgba(13, 22, 38, 0.72);
+  box-shadow: 0 20px 52px rgba(3, 8, 18, 0.32);
+  backdrop-filter: blur(16px);
+}
+
+.map-review-route-lens--story {
+  top: auto;
+  right: 1rem;
+  bottom: 8.4rem;
+  width: min(21rem, calc(100% - 2rem));
+  max-height: 38%;
+}
+
+.map-review-context-panel {
+  width: min(21rem, calc(100% - 2rem));
+}
+
+.map-review-route-lens-kicker {
+  margin: 0;
+  color: rgba(147, 231, 255, 0.82);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.map-review-route-lens h3 {
+  margin: 0.28rem 0 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: #f7fbff;
+  font-size: 1.02rem;
+  line-height: 1.28;
+}
+
+.map-review-route-lens--empty h3 {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.45rem;
+  letter-spacing: -0.025em;
+}
+
+.map-review-route-lens--empty p {
+  margin-top: 0.7rem;
+  font-size: 0.94rem;
+  line-height: 1.62;
+}
+
+.map-review-route-lens-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.map-review-route-lens-header button {
+  flex: 0 0 auto;
+  padding: 0.38rem 0.58rem;
+  border: 1px solid rgba(167, 202, 253, 0.22);
+  border-radius: 999px;
+  background: rgba(14, 25, 43, 0.36);
+  color: rgba(232, 240, 252, 0.82);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.map-review-route-lens-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.72rem;
+  margin: 0.95rem 0 0;
+}
+
+.map-review-route-lens-grid div {
+  padding-top: 0.58rem;
+  border-top: 1px solid rgba(167, 202, 253, 0.13);
+}
+
+.map-review-route-lens-grid dt {
+  color: rgba(214, 231, 250, 0.55);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.map-review-route-lens-grid dd {
+  margin: 0.2rem 0 0;
+  color: #f7fbff;
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-review-route-lens-status {
+  margin: 0.85rem 0 0;
+  color: rgba(214, 231, 250, 0.66);
+  font-size: 0.78rem;
+}
+
+.map-review-route-lens-status--error {
+  color: rgba(255, 166, 214, 0.9);
+}
+
+.map-review-route-lens-block {
+  margin-top: 1rem;
+}
+
+.map-review-route-lens-block h4 {
+  margin: 0;
+  color: rgba(232, 240, 252, 0.86);
+  font-size: 0.72rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.map-review-route-lens-contributors {
+  display: grid;
+  gap: 0.58rem;
+  margin: 0.62rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.map-review-route-lens-contributors li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.18rem 0.75rem;
+  padding: 0.58rem 0;
+  border-top: 1px solid rgba(167, 202, 253, 0.1);
+}
+
+.map-review-route-lens-contributors span {
+  min-width: 0;
+  color: rgba(247, 251, 255, 0.88);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.map-review-route-lens-contributors strong {
+  color: #ffde75;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-review-route-lens-contributors small {
+  grid-column: 1 / -1;
+  color: rgba(214, 231, 250, 0.52);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+.map-review-route-lens-list,
+.map-review-route-lens-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  margin-top: 0.62rem;
+}
+
+.map-review-route-lens-list span,
+.map-review-context-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.65rem;
+  padding: 0.3rem 0.48rem;
+  border: 1px solid rgba(167, 202, 253, 0.12);
+  border-radius: 999px;
+  background: rgba(16, 29, 50, 0.28);
+  color: rgba(232, 240, 252, 0.76);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.map-review-context-chip[class*="food-night"],
+.map-review-context-chip[class*="night"] {
+  border-color: rgba(255, 89, 139, 0.34);
+  color: rgba(255, 196, 218, 0.92);
+}
+
+.map-review-context-chip[class*="transit"],
+.map-review-context-chip[class*="office-work"],
+.map-review-context-chip[class*="commercial"] {
+  border-color: rgba(78, 188, 255, 0.34);
+  color: rgba(196, 234, 255, 0.92);
+}
+
+.map-review-context-chip[class*="leisure-park"],
+.map-review-context-chip[class*="sport-leisure"] {
+  border-color: rgba(100, 225, 143, 0.34);
+  color: rgba(199, 255, 217, 0.92);
+}
+
+.map-review-route-lens-muted {
+  margin: 0.55rem 0 0;
+  color: rgba(214, 231, 250, 0.58);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 .map-review-explore-map {
   position: relative;
   min-height: 42rem;
@@ -2198,6 +2493,112 @@ body {
   text-transform: uppercase;
   backdrop-filter: blur(8px);
 }
+
+.map-review-explore-legend {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 5;
+  display: grid;
+  gap: 0.72rem;
+  width: min(22rem, calc(100% - 2rem));
+  padding: 0.82rem 0.9rem;
+  border: 1px solid rgba(201, 223, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(17, 27, 45, 0.58);
+  color: rgba(239, 247, 255, 0.82);
+  box-shadow: 0 18px 44px rgba(7, 13, 24, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.map-review-explore-legend-section {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.map-review-explore-legend strong {
+  color: rgba(247, 251, 255, 0.94);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.map-review-explore-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-width: 0;
+  font-size: 0.7rem;
+  line-height: 1.25;
+}
+
+.map-review-explore-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.32rem 0.52rem;
+}
+
+.map-review-legend-line {
+  display: inline-block;
+  width: 1.85rem;
+  height: 0.2rem;
+  border-radius: 999px;
+}
+
+.map-review-legend-line--segment {
+  background: rgba(103, 207, 255, 0.62);
+}
+
+.map-review-legend-line--corridor {
+  height: 0.28rem;
+  background: rgba(230, 250, 255, 0.9);
+  box-shadow: 0 0 0 2px rgba(103, 207, 255, 0.18);
+}
+
+.map-review-legend-ramp {
+  display: inline-block;
+  width: 2.3rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4ebcff 0%, #ffd95b 50%, #ff598b 100%);
+}
+
+.map-review-legend-dot,
+.map-review-legend-swatch {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 0.54rem;
+  height: 0.54rem;
+  border-radius: 999px;
+  background: #9fe9ff;
+}
+
+.map-review-legend-swatch {
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.map-review-legend-dot--hotspot {
+  background: #ff598b;
+}
+
+.map-review-legend-dot--station {
+  background: rgba(224, 236, 220, 0.74);
+}
+
+.map-review-legend-poi--transit { background: #4ebcff; }
+.map-review-legend-poi--office-work { background: #5297ff; }
+.map-review-legend-poi--food-night { background: #ff598b; }
+.map-review-legend-poi--retail { background: #ffb15e; }
+.map-review-legend-poi--culture-tourism { background: #bf77ff; }
+.map-review-legend-poi--sport-leisure { background: #64e18f; }
+
+.map-review-legend-landuse--commercial { background: rgba(82, 151, 255, 0.78); }
+.map-review-legend-landuse--retail { background: rgba(255, 177, 94, 0.76); }
+.map-review-legend-landuse--residential { background: rgba(190, 205, 226, 0.6); }
+.map-review-legend-landuse--education-civic { background: rgba(106, 224, 188, 0.74); }
+.map-review-legend-landuse--leisure-park { background: rgba(100, 225, 143, 0.8); }
+.map-review-legend-landuse--industrial { background: rgba(181, 119, 255, 0.72); }
 
 .map-review-appendix {
   display: grid;
@@ -2323,6 +2724,14 @@ body {
     min-height: 34rem;
   }
 
+  .map-review-route-lens--floating {
+    top: auto;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    width: min(22rem, calc(100% - 1.5rem));
+    max-height: 46%;
+  }
+
   .map-review-appendix-grid {
     grid-template-columns: 1fr;
   }
@@ -2391,6 +2800,24 @@ body {
 
   .map-review-explore-map {
     min-height: 28rem;
+  }
+
+  .map-review-route-lens--floating {
+    right: 0.65rem;
+    bottom: 0.65rem;
+    width: calc(100% - 1.3rem);
+    max-height: 48%;
+  }
+
+  .map-review-explore-legend {
+    left: 0.65rem;
+    right: 0.65rem;
+    bottom: 0.65rem;
+    width: auto;
+  }
+
+  .map-review-route-lens--floating + .map-review-explore-legend {
+    display: none;
   }
 
   .map-review-explore-metrics {

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import type { FilterSpecification, StyleSpecification } from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { ContourLayer, HeatmapLayer } from "@deck.gl/aggregation-layers";
-import { ArcLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { ArcLayer, GeoJsonLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { CompactFlow, CompactHotspot } from "../../types/flows";
+import type { OdRouteLensRoute, RouteColorMode, ServiceContextPoiFeature, ServiceLanduseFeature } from "../../types/routeLens";
 import type { RouteFlowEdge } from "../../types/routeFlows";
 import type { StationInfraMetricRecord, StoryCameraPreset, StoryStationMetric } from "../../types/story";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -43,13 +44,35 @@ type Props = {
   globalFlowMax?: number; // if provided, arcs normalize against this instead of local max
   routeFlowMax?: number;
   onRouteHover?: (edge: RouteFlowEdge | null, position: { x: number; y: number } | null) => void;
+  onRouteClick?: (edge: RouteFlowEdge | null) => void;
+  odRouteLensRoutes?: OdRouteLensRoute[];
+  selectedOdRouteId?: string | null;
+  hoveredOdRouteId?: string | null;
+  showOdRouteLens?: boolean;
+  odRouteLensVariant?: "story" | "explore";
+  onOdRouteHover?: (route: OdRouteLensRoute | null, position: { x: number; y: number } | null) => void;
+  onOdRouteClick?: (route: OdRouteLensRoute | null) => void;
   onStationHover?: (station: StationInfraMetricRecord | null, position: { x: number; y: number } | null) => void;
   stationFilter?: Set<string>; // active station categories for infrastructure view
   showParticles?: boolean;
   showContours?: boolean;
   routeDisplayMode?: RouteDisplayMode;
+  routeColorMode?: RouteColorMode;
+  selectedRouteEdgeId?: string | null;
+  hoveredRouteEdgeId?: string | null;
   focusBounds?: [[number, number], [number, number]] | null;
   functionAnchors?: FunctionAnchor[];
+  showHotspotsOverlay?: boolean;
+  showStationsOverlay?: boolean;
+  showStationBackdrop?: boolean;
+  contextPois?: ServiceContextPoiFeature[];
+  landuseFeatures?: ServiceLanduseFeature[];
+  showPoiLayer?: boolean;
+  showLanduseLayer?: boolean;
+  selectedPoiId?: string | null;
+  selectedLanduseId?: string | null;
+  onPoiClick?: (feature: ServiceContextPoiFeature | null) => void;
+  onLanduseClick?: (feature: ServiceLanduseFeature | null) => void;
   onFunctionAnchorHover?: (anchor: FunctionAnchor | null, position: { x: number; y: number } | null) => void;
   showContextWater?: boolean;
   onMapReady?: (map: maplibregl.Map | null) => void;
@@ -299,6 +322,18 @@ function editorialRouteColor(edge: RouteFlowEdge, routeMax: number, _colorScheme
   return rgba(mixRgb(palette.route, palette.routeLight, 0.18 + strength * 0.68), 112 + Math.round(strength * 80));
 }
 
+function intensityRouteColor(edge: RouteFlowEdge, routeMax: number): RGBA {
+  const strength = routeVisualStrength(edge, routeMax);
+  const cold: [number, number, number] = [78, 188, 255];
+  const mid: [number, number, number] = [255, 217, 91];
+  const hot: [number, number, number] = [255, 89, 139];
+  const rgb = strength < 0.5
+    ? mixRgb(cold, mid, strength / 0.5)
+    : mixRgb(mid, hot, (strength - 0.5) / 0.5);
+
+  return rgba(rgb, 86 + Math.round(strength * 136));
+}
+
 function editorialRouteHalo(edge: RouteFlowEdge, routeMax: number): RGBA {
   const strength = routeVisualStrength(edge, routeMax);
   return [235, 248, 255, 44 + Math.round(strength * 68)] as RGBA;
@@ -307,6 +342,97 @@ function editorialRouteHalo(edge: RouteFlowEdge, routeMax: number): RGBA {
 function editorialRouteContext(edge: RouteFlowEdge, routeMax: number): RGBA {
   const strength = routeVisualStrength(edge, routeMax);
   return [118, 145, 178, 18 + Math.round(strength * 28)] as RGBA;
+}
+
+function routeColorForMode(edge: RouteFlowEdge, routeMax: number, colorScheme: ColorScheme, routeColorMode: RouteColorMode): RGBA {
+  if (routeColorMode === "intensity") return intensityRouteColor(edge, routeMax);
+  return editorialRouteColor(edge, routeMax, colorScheme);
+}
+
+function withSelectionOpacity(
+  color: RGBA,
+  edge: RouteFlowEdge,
+  selectedRouteEdgeId: string | null | undefined,
+  selectedOdRouteId: string | null | undefined = null,
+): RGBA {
+  if (selectedRouteEdgeId) {
+    return edge.id === selectedRouteEdgeId ? color : [color[0], color[1], color[2], Math.round(color[3] * 0.28)];
+  }
+  if (selectedOdRouteId) return [color[0], color[1], color[2], Math.round(color[3] * 0.48)];
+  return color;
+}
+
+function odRouteColor(route: OdRouteLensRoute, routeColorMode: RouteColorMode): RGBA {
+  const strength = clamp01(route.strength);
+  if (routeColorMode === "intensity") {
+    const cold: [number, number, number] = [44, 180, 255];
+    const mid: [number, number, number] = [255, 203, 64];
+    const hot: [number, number, number] = [255, 72, 126];
+    const rgb = strength < 0.5
+      ? mixRgb(cold, mid, strength / 0.5)
+      : mixRgb(mid, hot, (strength - 0.5) / 0.5);
+    return rgba(rgb, 138 + Math.round(strength * 108));
+  }
+  return rgba(mixRgb([82, 218, 255], [234, 252, 255], 0.08 + strength * 0.62), 116 + Math.round(strength * 96));
+}
+
+function withOdRouteSelectionOpacity(
+  color: RGBA,
+  route: OdRouteLensRoute,
+  selectedOdRouteId: string | null | undefined,
+  hoveredOdRouteId: string | null | undefined,
+): RGBA {
+  if (selectedOdRouteId) {
+    return route.id === selectedOdRouteId ? color : [color[0], color[1], color[2], Math.round(color[3] * 0.18)];
+  }
+  if (hoveredOdRouteId) {
+    return route.id === hoveredOdRouteId ? color : [color[0], color[1], color[2], Math.round(color[3] * 0.72)];
+  }
+  return color;
+}
+
+function poiCategoryColor(category: ServiceContextPoiFeature["properties"]["category"]): RGBA {
+  switch (category) {
+    case "transit":
+      return [78, 188, 255, 178];
+    case "office-work":
+      return [82, 151, 255, 164];
+    case "food-night":
+      return [255, 89, 139, 176];
+    case "retail":
+      return [255, 177, 94, 164];
+    case "culture-tourism":
+      return [191, 119, 255, 168];
+    case "education":
+      return [106, 224, 188, 158];
+    case "health":
+      return [255, 118, 118, 168];
+    case "civic":
+      return [224, 240, 255, 152];
+    case "sport-leisure":
+      return [100, 225, 143, 168];
+    default:
+      return [210, 226, 250, 128];
+  }
+}
+
+function landuseCategoryColor(category: ServiceLanduseFeature["properties"]["category"]): RGBA {
+  switch (category) {
+    case "commercial":
+      return [82, 151, 255, 82];
+    case "retail":
+      return [255, 177, 94, 78];
+    case "residential":
+      return [190, 205, 226, 42];
+    case "education-civic":
+      return [106, 224, 188, 70];
+    case "leisure-park":
+      return [100, 225, 143, 86];
+    case "industrial":
+      return [181, 119, 255, 66];
+    default:
+      return [190, 205, 226, 38];
+  }
 }
 
 function routeCssColor(_colorScheme: ColorScheme) {
@@ -368,14 +494,88 @@ function interpolateParticle(flow: CompactFlow, t: number, laneOffset: number) {
   ] as [number, number];
 }
 
+function distanceToScreenSegment(
+  point: { x: number; y: number },
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+) {
+  const vx = end.x - start.x;
+  const vy = end.y - start.y;
+  const wx = point.x - start.x;
+  const wy = point.y - start.y;
+  const lengthSquared = vx * vx + vy * vy;
+  if (lengthSquared <= 0) return Math.hypot(point.x - start.x, point.y - start.y);
+  const t = clamp01((wx * vx + wy * vy) / lengthSquared);
+  return Math.hypot(point.x - (start.x + vx * t), point.y - (start.y + vy * t));
+}
+
+function distanceToScreenPolyline(
+  point: { x: number; y: number },
+  projected: Array<{ x: number; y: number }>,
+) {
+  let nearest = Number.POSITIVE_INFINITY;
+  for (let index = 1; index < projected.length; index += 1) {
+    nearest = Math.min(nearest, distanceToScreenSegment(point, projected[index - 1], projected[index]));
+  }
+  return nearest;
+}
+
+function pointInRing(point: [number, number], ring: number[][]) {
+  let inside = false;
+  const [x, y] = point;
+
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
+    const [xi, yi] = ring[index];
+    const [xj, yj] = ring[previous];
+    const intersects = (yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / ((yj - yi) || Number.EPSILON) + xi;
+    if (intersects) inside = !inside;
+  }
+
+  return inside;
+}
+
+function pointInPolygon(point: [number, number], polygon: number[][][]) {
+  if (!pointInRing(point, polygon[0] ?? [])) return false;
+  return !polygon.slice(1).some((hole) => pointInRing(point, hole));
+}
+
+function landuseContainsPoint(feature: ServiceLanduseFeature, point: [number, number]) {
+  if (feature.geometry.type === "Polygon") {
+    return pointInPolygon(point, feature.geometry.coordinates as number[][][]);
+  }
+
+  return (feature.geometry.coordinates as number[][][][]).some((polygon) => pointInPolygon(point, polygon));
+}
+
 /* ── component ── */
 
 export function OdFlowMapCanvas({
-  flows, compareFlows = [], routeEdges = [], hotspots, stations, viewMode, stationMetric, cameraPreset, colorScheme, activeFlowProfileId = "all", compareFlowProfileId = null, interactive, globalFlowMax, routeFlowMax, onRouteHover, onStationHover, stationFilter,
+  flows, compareFlows = [], routeEdges = [], hotspots, stations, viewMode, stationMetric, cameraPreset, colorScheme, activeFlowProfileId = "all", compareFlowProfileId = null, interactive, globalFlowMax, routeFlowMax, onRouteHover, onRouteClick, onStationHover, stationFilter,
+  odRouteLensRoutes = [],
+  selectedOdRouteId = null,
+  hoveredOdRouteId = null,
+  showOdRouteLens = false,
+  odRouteLensVariant = "explore",
+  onOdRouteHover,
+  onOdRouteClick,
   showParticles = false, showContours = false,
   routeDisplayMode = "hierarchy",
+  routeColorMode = "unified",
+  selectedRouteEdgeId = null,
+  hoveredRouteEdgeId = null,
   focusBounds = null,
   functionAnchors = [],
+  showHotspotsOverlay = false,
+  showStationsOverlay = false,
+  showStationBackdrop = true,
+  contextPois = [],
+  landuseFeatures = [],
+  showPoiLayer = false,
+  showLanduseLayer = false,
+  selectedPoiId = null,
+  selectedLanduseId = null,
+  onPoiClick,
+  onLanduseClick,
   onFunctionAnchorHover,
   showContextWater = false,
   onMapReady,
@@ -435,6 +635,26 @@ export function OdFlowMapCanvas({
       : sortedRouteEdges.filter((edge) => edge.averageDailyTrips >= routeAccentCutoff),
     [routeAccentCutoff, routeEdges, routeEdgesHaveVisualTiers, sortedRouteEdges],
   );
+  const clickableRouteEdges = useMemo(() => {
+    return routeEdges;
+  }, [routeEdges]);
+  const visibleOdRoutes = useMemo(
+    () => showOdRouteLens ? odRouteLensRoutes.filter((route) => route.coordinates.length >= 2) : [],
+    [odRouteLensRoutes, showOdRouteLens],
+  );
+  const odLensWidth = odRouteLensVariant === "story"
+    ? { haloBase: 1.5, haloScale: 2.2, lineBase: 0.75, lineScale: 1.95, selectedBase: 2.6, selectedScale: 1.8 }
+    : { haloBase: 1.7, haloScale: 2.8, lineBase: 0.86, lineScale: 2.28, selectedBase: 3.0, selectedScale: 2.05 };
+  const highlightedOdRoutes = useMemo(() => {
+    const highlightedIds = new Set([selectedOdRouteId, hoveredOdRouteId].filter(Boolean));
+    if (highlightedIds.size === 0) return [];
+    return visibleOdRoutes.filter((route) => highlightedIds.has(route.id));
+  }, [hoveredOdRouteId, selectedOdRouteId, visibleOdRoutes]);
+  const highlightedRouteEdges = useMemo(() => {
+    const highlightedIds = new Set([selectedRouteEdgeId, hoveredRouteEdgeId].filter(Boolean));
+    if (highlightedIds.size === 0) return [];
+    return clickableRouteEdges.filter((edge) => highlightedIds.has(edge.id));
+  }, [clickableRouteEdges, hoveredRouteEdgeId, selectedRouteEdgeId]);
   useEffect(() => {
     if (!showParticles) return undefined;
 
@@ -488,11 +708,11 @@ export function OdFlowMapCanvas({
 
       map.addLayer({
         id: "borough-mask", type: "fill", source: "boroughs",
-        paint: { "fill-color": "#2b3448", "fill-opacity": 0 },
+        paint: { "fill-color": "#1d2739", "fill-opacity": 0.22 },
       });
       map.addLayer({
         id: "borough-fill", type: "fill", source: "boroughs",
-        paint: { "fill-color": "#46536f", "fill-opacity": 0 },
+        paint: { "fill-color": "#53627f", "fill-opacity": 0.05 },
       });
       if (showContextWater) {
         map.addLayer({
@@ -524,16 +744,16 @@ export function OdFlowMapCanvas({
         id: "borough-line", type: "line", source: "boroughs",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "rgba(181,198,224,0.18)",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 8.5, 0.45, 12, 0.82],
+          "line-color": "rgba(181,198,224,0.13)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8.5, 0.36, 12, 0.66],
         },
       });
       map.addLayer({
         id: "borough-active-outline", type: "line", source: "boroughs",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "rgba(214,231,255,0.22)",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 8.5, 0.62, 12, 0.94],
+          "line-color": "rgba(214,231,255,0.19)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8.5, 0.48, 12, 0.78],
           "line-blur": 0.08,
         },
       });
@@ -643,8 +863,8 @@ export function OdFlowMapCanvas({
   const showArcs = viewMode === "flows";
   const showAllRouteEdges = showRoutes && routeDisplayMode === "all";
   const showStationMetric = viewMode === "stations" || viewMode === "infrastructure";
-  const showStations = showStationMetric;
-  const showHotspots = viewMode === "hotspots";
+  const showStations = showStationMetric || showStationsOverlay;
+  const showHotspots = viewMode === "hotspots" || showHotspotsOverlay;
   const showInfra = viewMode === "infrastructure";
   const infraDim = showInfra ? 0.72 : 1;
   const activeFlowPalette = paletteForFlowProfile(activeFlowProfileId, colorScheme);
@@ -764,6 +984,90 @@ export function OdFlowMapCanvas({
 
   const layers = useMemo(
     () => [
+      new GeoJsonLayer<ServiceLanduseFeature>({
+        id: "service-landuse-context",
+        data: { type: "FeatureCollection", features: landuseFeatures } as never,
+        visible: showLanduseLayer && landuseFeatures.length > 0,
+        pickable: Boolean(onLanduseClick),
+        filled: true,
+        stroked: true,
+        autoHighlight: Boolean(onLanduseClick),
+        highlightColor: [255, 248, 214, 78] as RGBA,
+        getFillColor: (feature: unknown) => {
+          const typedFeature = feature as ServiceLanduseFeature;
+          const color = landuseCategoryColor(typedFeature.properties.category);
+          if (selectedLanduseId && typedFeature.properties.id !== selectedLanduseId) {
+            return [color[0], color[1], color[2], Math.round(color[3] * 0.52)] as RGBA;
+          }
+          if (selectedLanduseId === typedFeature.properties.id) {
+            return [color[0], color[1], color[2], Math.min(142, Math.round(color[3] * 1.65))] as RGBA;
+          }
+          return color;
+        },
+        getLineColor: (feature: unknown) => {
+          const typedFeature = feature as ServiceLanduseFeature;
+          return selectedLanduseId === typedFeature.properties.id
+            ? [255, 248, 214, 210] as RGBA
+            : [197, 219, 250, 36] as RGBA;
+        },
+        lineWidthMinPixels: selectedLanduseId ? 0.72 : 0.25,
+        parameters: { depthTest: false } as never,
+        onClick: (info: { object?: ServiceLanduseFeature }) => {
+          onLanduseClick?.(info.object ?? null);
+          return Boolean(info.object);
+        },
+        onHover: (info: { object?: ServiceLanduseFeature }) => {
+          if (mapRef.current && onLanduseClick) {
+            mapRef.current.getCanvas().style.cursor = info.object ? "pointer" : "";
+          }
+        },
+        updateTriggers: {
+          getFillColor: [selectedLanduseId],
+          getLineColor: [selectedLanduseId],
+        },
+      }),
+
+      new ScatterplotLayer<ServiceContextPoiFeature>({
+        id: "service-poi-context",
+        data: contextPois,
+        visible: showPoiLayer && contextPois.length > 0,
+        pickable: Boolean(onPoiClick),
+        autoHighlight: Boolean(onPoiClick),
+        highlightColor: [255, 248, 214, 92] as RGBA,
+        radiusUnits: "pixels" as const,
+        radiusMinPixels: 1.6,
+        radiusMaxPixels: 5.6,
+        stroked: false,
+        getPosition: (feature) => feature.geometry.coordinates,
+        getRadius: (feature) => {
+          const base = feature.properties.category === "transit" ? 3.5 : feature.properties.category === "food-night" ? 3.1 : 2.4;
+          return selectedPoiId === feature.properties.id ? base + 2.8 : base;
+        },
+        getFillColor: (feature) => {
+          const color = poiCategoryColor(feature.properties.category);
+          if (selectedPoiId && feature.properties.id !== selectedPoiId) {
+            return [color[0], color[1], color[2], Math.round(color[3] * 0.42)] as RGBA;
+          }
+          return selectedPoiId === feature.properties.id
+            ? [255, 248, 214, 232] as RGBA
+            : color;
+        },
+        parameters: { depthTest: false } as never,
+        onClick: (info: { object?: ServiceContextPoiFeature }) => {
+          onPoiClick?.(info.object ?? null);
+          return Boolean(info.object);
+        },
+        onHover: (info: { object?: ServiceContextPoiFeature }) => {
+          if (mapRef.current && onPoiClick) {
+            mapRef.current.getCanvas().style.cursor = info.object ? "pointer" : "";
+          }
+        },
+        updateTriggers: {
+          getRadius: [selectedPoiId],
+          getFillColor: [selectedPoiId],
+        },
+      }),
+
       new PathLayer<RouteFlowEdge>({
         id: "route-flow-context",
         data: contextRouteEdges,
@@ -776,10 +1080,21 @@ export function OdFlowMapCanvas({
         capRounded: true,
         getPath: (edge) => edge.coordinates,
         getWidth: (edge) => showAllRouteEdges ? 0.72 + routeVisualStrength(edge, resolvedRouteMax) * 0.72 : 0.8 + routeVisualStrength(edge, resolvedRouteMax) * 3.2,
-        getColor: (edge) => showAllRouteEdges
-          ? rgba(routePalette.routeLight, 34 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 68))
-          : editorialRouteContext(edge, resolvedRouteMax),
+        getColor: (edge) => withSelectionOpacity(
+          showAllRouteEdges
+            ? routeColorMode === "intensity"
+              ? intensityRouteColor(edge, resolvedRouteMax)
+              : rgba(routePalette.routeLight, 34 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 68))
+            : editorialRouteContext(edge, resolvedRouteMax),
+          edge,
+          selectedRouteEdgeId,
+          selectedOdRouteId,
+        ),
         opacity: showAllRouteEdges ? 1 : 0.84,
+        updateTriggers: {
+          getColor: [routeColorMode, resolvedRouteMax, selectedRouteEdgeId, selectedOdRouteId],
+          getWidth: [resolvedRouteMax, showAllRouteEdges],
+        },
       }),
 
       new PathLayer<RouteFlowEdge>({
@@ -794,10 +1109,21 @@ export function OdFlowMapCanvas({
         capRounded: true,
         getPath: (edge) => edge.coordinates,
         getWidth: (edge) => showAllRouteEdges ? 0.82 + routeVisualStrength(edge, resolvedRouteMax) * 0.98 : 0.95 + routeVisualStrength(edge, resolvedRouteMax) * 4.6,
-        getColor: (edge) => showAllRouteEdges
-          ? rgba(routePalette.route, 42 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 110))
-          : rgba(routePalette.routeLight, 42 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 34)),
+        getColor: (edge) => withSelectionOpacity(
+          showAllRouteEdges
+            ? routeColorMode === "intensity"
+              ? intensityRouteColor(edge, resolvedRouteMax)
+              : rgba(routePalette.route, 42 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 110))
+            : rgba(routePalette.routeLight, 42 + Math.round(routeVisualStrength(edge, resolvedRouteMax) * 34)),
+          edge,
+          selectedRouteEdgeId,
+          selectedOdRouteId,
+        ),
         opacity: showAllRouteEdges ? 0.94 : 0.46,
+        updateTriggers: {
+          getColor: [routeColorMode, resolvedRouteMax, selectedRouteEdgeId, selectedOdRouteId],
+          getWidth: [resolvedRouteMax, showAllRouteEdges],
+        },
       }),
 
       new PathLayer<RouteFlowEdge>({
@@ -812,15 +1138,19 @@ export function OdFlowMapCanvas({
         capRounded: true,
         getPath: (edge) => edge.coordinates,
         getWidth: (edge) => showAllRouteEdges ? 1.15 + routeVisualStrength(edge, resolvedRouteMax) * 0.95 : 2.2 + routeVisualStrength(edge, resolvedRouteMax) * 10.5,
-        getColor: (edge) => editorialRouteHalo(edge, resolvedRouteMax),
+        getColor: (edge) => withSelectionOpacity(editorialRouteHalo(edge, resolvedRouteMax), edge, selectedRouteEdgeId, selectedOdRouteId),
         opacity: showAllRouteEdges ? 0.38 : 0.92,
+        updateTriggers: {
+          getColor: [resolvedRouteMax, selectedRouteEdgeId, selectedOdRouteId],
+          getWidth: [resolvedRouteMax, showAllRouteEdges],
+        },
       }),
 
       new PathLayer<RouteFlowEdge>({
         id: "route-flow-streets",
         data: showAllRouteEdges ? accentRouteEdges : focusRouteEdges,
         visible: showRoutes && (showAllRouteEdges ? accentRouteEdges.length > 0 : focusRouteEdges.length > 0),
-        pickable: Boolean(onRouteHover) && showRoutes,
+        pickable: false,
         widthUnits: "pixels" as const,
         widthMinPixels: 1,
         widthMaxPixels: 9,
@@ -828,15 +1158,136 @@ export function OdFlowMapCanvas({
         capRounded: true,
         getPath: (edge) => edge.coordinates,
         getWidth: (edge) => showAllRouteEdges ? 0.95 + routeVisualStrength(edge, resolvedRouteMax) * 1.1 : 0.95 + routeVisualStrength(edge, resolvedRouteMax) * 6.9,
-        getColor: (edge) => editorialRouteColor(edge, resolvedRouteMax, colorScheme),
+        getColor: (edge) => withSelectionOpacity(
+          routeColorForMode(edge, resolvedRouteMax, colorScheme, routeColorMode),
+          edge,
+          selectedRouteEdgeId,
+          selectedOdRouteId,
+        ),
         opacity: 0.98,
+        updateTriggers: {
+          getColor: [colorScheme, routeColorMode, resolvedRouteMax, selectedRouteEdgeId, selectedOdRouteId],
+          getWidth: [resolvedRouteMax, showAllRouteEdges],
+        },
+      }),
+
+      new PathLayer<RouteFlowEdge>({
+        id: "route-flow-highlight",
+        data: highlightedRouteEdges,
+        visible: showRoutes && highlightedRouteEdges.length > 0,
+        pickable: false,
+        widthUnits: "pixels" as const,
+        widthMinPixels: 3,
+        widthMaxPixels: 13,
+        jointRounded: true,
+        capRounded: true,
+        getPath: (edge) => edge.coordinates,
+        getWidth: (edge) => selectedRouteEdgeId === edge.id ? 5.2 : 3.4,
+        getColor: (edge) => selectedRouteEdgeId === edge.id ? [255, 248, 214, 248] as RGBA : [255, 255, 255, 168] as RGBA,
+        parameters: { depthTest: false } as never,
+      }),
+
+      new PathLayer<OdRouteLensRoute>({
+        id: "od-route-lens-halo",
+        data: visibleOdRoutes,
+        visible: showRoutes && showOdRouteLens && visibleOdRoutes.length > 0,
+        pickable: false,
+        widthUnits: "pixels" as const,
+        widthMinPixels: 1.4,
+        widthMaxPixels: 9,
+        jointRounded: true,
+        capRounded: true,
+        getPath: (route) => route.coordinates,
+        getWidth: (route) => odLensWidth.haloBase + clamp01(route.strength) * odLensWidth.haloScale,
+        getColor: (route) => withOdRouteSelectionOpacity(
+          [226, 247, 255, 18 + Math.round(clamp01(route.strength) * 38)] as RGBA,
+          route,
+          selectedOdRouteId,
+          hoveredOdRouteId,
+        ),
+        parameters: { depthTest: false } as never,
+        updateTriggers: {
+          getColor: [selectedOdRouteId, hoveredOdRouteId],
+          getWidth: [odLensWidth.haloBase, odLensWidth.haloScale],
+        },
+      }),
+
+      new PathLayer<OdRouteLensRoute>({
+        id: "od-route-lens-routes",
+        data: visibleOdRoutes,
+        visible: showRoutes && showOdRouteLens && visibleOdRoutes.length > 0,
+        pickable: false,
+        widthUnits: "pixels" as const,
+        widthMinPixels: 0.7,
+        widthMaxPixels: 7,
+        jointRounded: true,
+        capRounded: true,
+        getPath: (route) => route.coordinates,
+        getWidth: (route) => odLensWidth.lineBase + clamp01(route.strength) * odLensWidth.lineScale,
+        getColor: (route) => withOdRouteSelectionOpacity(
+          odRouteColor(route, routeColorMode),
+          route,
+          selectedOdRouteId,
+          hoveredOdRouteId,
+        ),
+        parameters: { depthTest: false } as never,
+        updateTriggers: {
+          getColor: [routeColorMode, selectedOdRouteId, hoveredOdRouteId],
+          getWidth: [odLensWidth.lineBase, odLensWidth.lineScale],
+        },
+      }),
+
+      new PathLayer<OdRouteLensRoute>({
+        id: "od-route-lens-selected",
+        data: highlightedOdRoutes,
+        visible: showRoutes && showOdRouteLens && highlightedOdRoutes.length > 0,
+        pickable: false,
+        widthUnits: "pixels" as const,
+        widthMinPixels: 2,
+        widthMaxPixels: 9,
+        jointRounded: true,
+        capRounded: true,
+        getPath: (route) => route.coordinates,
+        getWidth: (route) => selectedOdRouteId === route.id
+          ? odLensWidth.selectedBase + clamp01(route.strength) * odLensWidth.selectedScale
+          : Math.max(2, odLensWidth.lineBase + clamp01(route.strength) * 1.2),
+        getColor: (route) => selectedOdRouteId === route.id ? [255, 248, 214, 246] as RGBA : [255, 255, 255, 162] as RGBA,
+        parameters: { depthTest: false } as never,
+        updateTriggers: {
+          getColor: [selectedOdRouteId],
+          getWidth: [selectedOdRouteId, odLensWidth.lineBase, odLensWidth.selectedBase, odLensWidth.selectedScale],
+        },
+      }),
+
+      new PathLayer<RouteFlowEdge>({
+        id: "route-flow-hit-target",
+        data: clickableRouteEdges,
+        visible: showRoutes && Boolean(onRouteHover || onRouteClick) && clickableRouteEdges.length > 0,
+        pickable: true,
+        widthUnits: "pixels" as const,
+        widthMinPixels: 10,
+        widthMaxPixels: 16,
+        jointRounded: true,
+        capRounded: true,
+        getPath: (edge) => edge.coordinates,
+        getWidth: () => 12,
+        getColor: [255, 255, 255, 1] as RGBA,
+        opacity: 0.01,
         onHover: (info: { object?: RouteFlowEdge; x?: number; y?: number }) => {
+          if (mapRef.current) {
+            mapRef.current.getCanvas().style.cursor = info.object ? "pointer" : "";
+          }
           if (!onRouteHover) return;
           if (info.object && info.x !== undefined && info.y !== undefined) {
             onRouteHover(info.object, { x: info.x, y: info.y });
           } else {
             onRouteHover(null, null);
           }
+        },
+        onClick: (info: { object?: RouteFlowEdge }) => {
+          if (!onRouteClick) return false;
+          onRouteClick(info.object ?? null);
+          return true;
         },
       }),
 
@@ -915,7 +1366,7 @@ export function OdFlowMapCanvas({
       new ScatterplotLayer({
         id: "stn-bg",
         data: stations,
-        visible: showRoutes || showStations || showHotspots,
+        visible: (showStationBackdrop && showRoutes) || showStations || showHotspots,
         pickable: false,
         radiusUnits: "pixels" as const,
         radiusMinPixels: 1,
@@ -1154,14 +1605,160 @@ export function OdFlowMapCanvas({
         },
       }),
     ],
-    [accentRouteEdges, activeFlowPalette, anchorMax, anchorTotals.destinations, anchorTotals.origins, cameraPreset, colorScheme, compareFlowPalette, contextRouteEdges, contourLevels, flowMax, focusRouteEdges, functionAnchors, hotMax, hotspots, infraDim, onFunctionAnchorHover, onRouteHover, onStationHover, particlePoints, resolvedRouteMax, routeDisplayMode, routePalette.anchor, routePalette.route, routePalette.routeLight, showcaseFlowMax, showcaseFlows, showAllRouteEdges, showArcs, showCompareFlows, showContours, showHotspots, showInfra, showParticles, showRoutes, showStations, sortedCompareFlows, sortedFlows, sortedRouteEdges, stationFilter, stationMetric, stations, stnMax, supportRouteEdges],
+    [accentRouteEdges, activeFlowPalette, anchorMax, anchorTotals.destinations, anchorTotals.origins, cameraPreset, clickableRouteEdges, colorScheme, compareFlowPalette, contextPois, contextRouteEdges, contourLevels, flowMax, focusRouteEdges, functionAnchors, highlightedOdRoutes, highlightedRouteEdges, hotMax, hotspots, hoveredOdRouteId, infraDim, landuseFeatures, odLensWidth.haloBase, odLensWidth.haloScale, odLensWidth.lineBase, odLensWidth.lineScale, odLensWidth.selectedBase, odLensWidth.selectedScale, onFunctionAnchorHover, onLanduseClick, onPoiClick, onRouteClick, onRouteHover, onStationHover, particlePoints, resolvedRouteMax, routeColorMode, routeDisplayMode, routePalette.anchor, routePalette.route, routePalette.routeLight, selectedLanduseId, selectedOdRouteId, selectedPoiId, selectedRouteEdgeId, showcaseFlowMax, showcaseFlows, showAllRouteEdges, showArcs, showCompareFlows, showContours, showHotspots, showInfra, showLanduseLayer, showOdRouteLens, showParticles, showPoiLayer, showRoutes, showStationBackdrop, showStations, sortedCompareFlows, sortedFlows, sortedRouteEdges, stationFilter, stationMetric, stations, stnMax, supportRouteEdges, visibleOdRoutes],
   );
 
   /* ── push layers to overlay ── */
   useEffect(() => {
     if (!overlayRef.current) return;
-    overlayRef.current.setProps({ layers });
-  }, [layers, mapReady]);
+    overlayRef.current.setProps({
+      layers,
+      onClick: (info: { object?: unknown }) => {
+        if (!showRoutes || info.object) return false;
+        if (onOdRouteClick && showOdRouteLens) return false;
+        if (onRouteClick) onRouteClick(null);
+        return false;
+      },
+    });
+  }, [layers, mapReady, onOdRouteClick, onRouteClick, showOdRouteLens, showRoutes]);
+
+  const resolveNearestOdRoute = useCallback((point: { x: number; y: number }, thresholdPixels = 24) => {
+    if (!mapRef.current || visibleOdRoutes.length === 0) return null;
+    let nearestRoute: OdRouteLensRoute | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    for (const route of visibleOdRoutes) {
+      const projected = route.coordinates.map((coordinate) => mapRef.current!.project(coordinate));
+      const distance = distanceToScreenPolyline(point, projected);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestRoute = route;
+      }
+    }
+
+    return nearestDistance <= thresholdPixels ? nearestRoute : null;
+  }, [visibleOdRoutes]);
+
+  function resolveNearestContextPoi(point: { x: number; y: number }) {
+    if (!mapRef.current || !showPoiLayer || !onPoiClick || contextPois.length === 0) return null;
+    let nearestPoi: ServiceContextPoiFeature | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    for (const feature of contextPois) {
+      const projected = mapRef.current.project(feature.geometry.coordinates);
+      const distance = Math.hypot(point.x - projected.x, point.y - projected.y);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestPoi = feature;
+      }
+    }
+
+    return nearestDistance <= 8 ? nearestPoi : null;
+  }
+
+  function resolveLanduseFeatureAtPoint(point: { x: number; y: number }) {
+    if (!mapRef.current || !showLanduseLayer || !onLanduseClick || landuseFeatures.length === 0) return null;
+    const coordinate = mapRef.current.unproject([point.x, point.y]);
+    const lngLat: [number, number] = [coordinate.lng, coordinate.lat];
+
+    return landuseFeatures.find((feature) => landuseContainsPoint(feature, lngLat)) ?? null;
+  }
+
+  const eventPoint = useCallback((event: PointerEvent) => {
+    if (!containerRef.current) return null;
+    const bounds = containerRef.current.getBoundingClientRect();
+    return {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
+    };
+  }, []);
+
+  const handleCanvasPointerDown = useCallback((event: PointerEvent) => {
+    if (!showRoutes || !mapRef.current || !containerRef.current) return;
+    const clickPoint = eventPoint(event);
+    if (!clickPoint) return;
+
+    const nearestPoi = resolveNearestContextPoi(clickPoint);
+    if (nearestPoi) {
+      onPoiClick?.(nearestPoi);
+      return;
+    }
+
+    if (onOdRouteClick && showOdRouteLens) {
+      const nearestRoute = resolveNearestOdRoute(clickPoint, 26);
+      if (nearestRoute) {
+        onOdRouteClick(nearestRoute);
+        return;
+      }
+
+      const selectedLanduse = resolveLanduseFeatureAtPoint(clickPoint);
+      if (selectedLanduse) {
+        onLanduseClick?.(selectedLanduse);
+        return;
+      }
+
+      onOdRouteClick(null);
+      onPoiClick?.(null);
+      onLanduseClick?.(null);
+      return;
+    }
+
+    if (!onRouteClick || routeEdges.length === 0) return;
+    let nearestEdge: RouteFlowEdge | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    for (const edge of routeEdges) {
+      const start = mapRef.current.project(edge.coordinates[0]);
+      const end = mapRef.current.project(edge.coordinates[1]);
+      const distance = distanceToScreenSegment(clickPoint, start, end);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestEdge = edge;
+      }
+    }
+
+    onRouteClick(nearestDistance <= 14 ? nearestEdge : null);
+  }, [eventPoint, onLanduseClick, onOdRouteClick, onPoiClick, onRouteClick, resolveLanduseFeatureAtPoint, resolveNearestContextPoi, resolveNearestOdRoute, routeEdges, showOdRouteLens, showRoutes]);
+
+  const handleCanvasPointerMove = useCallback((event: PointerEvent) => {
+    if (!showRoutes || !showOdRouteLens || !mapRef.current) return;
+    const point = eventPoint(event);
+    if (!point) return;
+
+    if (resolveNearestContextPoi(point)) {
+      mapRef.current.getCanvas().style.cursor = "pointer";
+      if (onOdRouteHover) onOdRouteHover(null, null);
+      return;
+    }
+
+    const nearestRoute = resolveNearestOdRoute(point, 22);
+    if (nearestRoute) {
+      mapRef.current.getCanvas().style.cursor = "pointer";
+      if (onOdRouteHover) onOdRouteHover(nearestRoute, point);
+      return;
+    }
+
+    mapRef.current.getCanvas().style.cursor = resolveLanduseFeatureAtPoint(point) ? "pointer" : "";
+    if (onOdRouteHover) onOdRouteHover(null, null);
+  }, [eventPoint, onOdRouteHover, resolveLanduseFeatureAtPoint, resolveNearestContextPoi, resolveNearestOdRoute, showOdRouteLens, showRoutes]);
+
+  const handleCanvasPointerLeave = useCallback(() => {
+    if (mapRef.current) mapRef.current.getCanvas().style.cursor = "";
+    if (onOdRouteHover) onOdRouteHover(null, null);
+  }, [onOdRouteHover]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || (!onRouteClick && !onOdRouteClick && !onOdRouteHover && !onPoiClick && !onLanduseClick)) return undefined;
+    container.addEventListener("pointerdown", handleCanvasPointerDown, { capture: true });
+    container.addEventListener("pointermove", handleCanvasPointerMove, { passive: true });
+    container.addEventListener("pointerleave", handleCanvasPointerLeave, { passive: true });
+    return () => {
+      container.removeEventListener("pointerdown", handleCanvasPointerDown, { capture: true });
+      container.removeEventListener("pointermove", handleCanvasPointerMove);
+      container.removeEventListener("pointerleave", handleCanvasPointerLeave);
+    };
+  }, [handleCanvasPointerDown, handleCanvasPointerLeave, handleCanvasPointerMove, onLanduseClick, onOdRouteClick, onOdRouteHover, onPoiClick, onRouteClick]);
 
   return <div ref={containerRef} className="gl-canvas" />;
 }

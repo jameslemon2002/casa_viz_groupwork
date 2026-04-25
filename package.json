@@ -20,8 +20,12 @@
     "data:build:hourly": "node scripts/clean/build_hourly_flows.mjs",
     "data:build:temporal": "node scripts/clean/build_temporal_summary.mjs",
     "data:build:route-flows": "node scripts/clean/build_route_flows.mjs",
+    "data:build:route-details": "node scripts/clean/build_route_details.mjs",
+    "data:fetch:context": "node scripts/fetch/fetch_service_context.mjs",
+    "data:filter:context": "node scripts/clean/filter_service_context_to_boroughs.mjs",
     "data:optimize:route-flows": "node scripts/clean/optimize_route_flow_slices.mjs",
-    "data:build:regimes": "node scripts/clean/build_regime_summary.mjs"
+    "data:build:regimes": "node scripts/clean/build_regime_summary.mjs",
+    "test:route-lens": "node --test scripts/lib/route_lens_utils.test.mjs scripts/lib/od_route_lens_utils.test.mjs scripts/lib/geo_filter_utils.test.mjs scripts/lib/map_review_page_source.test.mjs"
   },
   "dependencies": {
     "@deck.gl/aggregation-layers": "^9.2.11",
