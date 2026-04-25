@@ -508,6 +508,14 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
+function formatPolygonArea(areaSqM: number) {
+  if (!Number.isFinite(areaSqM) || areaSqM <= 0) return "Unknown";
+  if (areaSqM >= 1_000_000) {
+    return `${(areaSqM / 1_000_000).toLocaleString("en-GB", { maximumFractionDigits: 2 })} km²`;
+  }
+  return `${Math.round(areaSqM).toLocaleString("en-GB")} m²`;
+}
+
 function collectCoordinatePairs(value: unknown, output: Array<[number, number]> = []) {
   if (!Array.isArray(value)) return output;
   if (typeof value[0] === "number" && typeof value[1] === "number") {
@@ -785,6 +793,9 @@ function ContextFeaturePanel({ selected, onClear }: ContextFeaturePanelProps) {
     ? poiLabels[(feature as ServiceContextPoiFeature).properties.category]
     : landuseLabels[(feature as ServiceLanduseFeature).properties.category];
   const osmId = feature.properties.osmId ? `${feature.properties.osmType ?? "OSM"} ${feature.properties.osmId}` : "OSM context";
+  const polygonAreaSqM = !isPoi
+    ? ((feature as ServiceLanduseFeature).properties.areaSqM ?? (feature as ServiceLanduseFeature).properties.area)
+    : null;
 
   return (
     <aside
@@ -809,10 +820,10 @@ function ContextFeaturePanel({ selected, onClear }: ContextFeaturePanelProps) {
           <dt>Source</dt>
           <dd>{osmId}</dd>
         </div>
-        {!isPoi && typeof (feature as ServiceLanduseFeature).properties.area === "number" ? (
+        {!isPoi && typeof polygonAreaSqM === "number" ? (
           <div>
             <dt>Polygon area</dt>
-            <dd>{Math.round((feature as ServiceLanduseFeature).properties.area ?? 0).toLocaleString("en-GB")} m²</dd>
+            <dd>{formatPolygonArea(polygonAreaSqM)}</dd>
           </div>
         ) : null}
       </dl>
@@ -1691,7 +1702,9 @@ export function MapReviewPage() {
               onClear={() => setSelectedContextFeature(null)}
             />
           ) : null}
-          <ExploreMapLegend layers={exploreLayers} colorMode={exploreRouteColorMode} />
+          {!(selectedOdRoute || selectedContextFeature) ? (
+            <ExploreMapLegend layers={exploreLayers} colorMode={exploreRouteColorMode} />
+          ) : null}
         </div>
       </section>
 

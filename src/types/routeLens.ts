@@ -49,6 +49,7 @@ export type ServiceLanduseFeature = {
     osmId?: number;
     source?: string;
     area?: number;
+    areaSqM?: number;
     [key: string]: string | number | null | undefined;
   };
   geometry: {

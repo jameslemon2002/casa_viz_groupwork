@@ -85,11 +85,35 @@ const landuseRules = [
 ];
 
 const waterValues = new Set(["water", "river", "riverbank", "basin", "reservoir", "dock", "canal"]);
+const metresPerDegreeLat = 111_320;
 
 function normaliseTags(tags = {}) {
   return Object.fromEntries(
     Object.entries(tags).map(([key, value]) => [key, String(value).toLowerCase()]),
   );
+}
+
+function ringAreaSquareMetres(coords) {
+  if (!Array.isArray(coords) || coords.length < 4) return 0;
+  const meanLat = coords.reduce((sum, coord) => sum + Number(coord[1] ?? 0), 0) / coords.length;
+  const metresPerDegreeLon = metresPerDegreeLat * Math.cos((meanLat * Math.PI) / 180);
+  let area = 0;
+
+  for (let index = 0; index < coords.length; index += 1) {
+    const current = coords[index];
+    const next = coords[(index + 1) % coords.length];
+    area += (current[0] * metresPerDegreeLon) * (next[1] * metresPerDegreeLat);
+    area -= (next[0] * metresPerDegreeLon) * (current[1] * metresPerDegreeLat);
+  }
+
+  return Math.abs(area) / 2;
+}
+
+function polygonAreaSquareMetres(rings) {
+  if (!Array.isArray(rings) || rings.length === 0) return 0;
+  const outer = ringAreaSquareMetres(rings[0]);
+  const holes = rings.slice(1).reduce((sum, ring) => sum + ringAreaSquareMetres(ring), 0);
+  return Math.max(0, outer - holes);
 }
 
 export function edgeIdFromCoordinates(coordinates) {
@@ -114,6 +138,15 @@ export function classifyLanduse(tagsInput = {}) {
     if (rule.test(tags)) return rule.category;
   }
   return null;
+}
+
+export function geometryAreaSquareMetres(geometry) {
+  if (!geometry) return 0;
+  if (geometry.type === "Polygon") return polygonAreaSquareMetres(geometry.coordinates);
+  if (geometry.type === "MultiPolygon") {
+    return geometry.coordinates.reduce((sum, polygon) => sum + polygonAreaSquareMetres(polygon), 0);
+  }
+  return 0;
 }
 
 function summarizeByCategory(features) {

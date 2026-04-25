@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { classifyLanduse, classifyPoi } from "../lib/route_lens_utils.mjs";
+import { classifyLanduse, classifyPoi, geometryAreaSquareMetres } from "../lib/route_lens_utils.mjs";
 import { filterFeaturesToBoroughs } from "../lib/geo_filter_utils.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -110,25 +110,6 @@ function elementCenter(element) {
   return [clampCoord(lon), clampCoord(lat)];
 }
 
-function ringArea(coords) {
-  let area = 0;
-  for (let i = 0; i < coords.length; i += 1) {
-    const current = coords[i];
-    const next = coords[(i + 1) % coords.length];
-    area += current[0] * next[1] - next[0] * current[1];
-  }
-  return Math.abs(area) / 2;
-}
-
-function geometryArea(geometry) {
-  if (!geometry) return 0;
-  if (geometry.type === "Polygon") return ringArea(geometry.coordinates[0] ?? []);
-  if (geometry.type === "MultiPolygon") {
-    return geometry.coordinates.reduce((sum, polygon) => sum + ringArea(polygon[0] ?? []), 0);
-  }
-  return 0;
-}
-
 function wayGeometry(element) {
   const coords = (element.geometry ?? [])
     .filter((point) => Number.isFinite(point?.lon) && Number.isFinite(point?.lat))
@@ -194,6 +175,7 @@ function landuseFeature(element) {
   const geometry = element.type === "relation" ? relationGeometry(element) : wayGeometry(element);
   if (!geometry) return null;
   const tags = tagsFor(element);
+  const areaSqM = Math.round(geometryAreaSquareMetres(geometry));
   return {
     type: "Feature",
     properties: {
@@ -206,7 +188,8 @@ function landuseFeature(element) {
       amenity: tags.amenity ?? null,
       leisure: tags.leisure ?? null,
       source: "OpenStreetMap via Overpass API",
-      area: Number(geometryArea(geometry).toFixed(8)),
+      area: areaSqM,
+      areaSqM,
     },
     geometry,
   };

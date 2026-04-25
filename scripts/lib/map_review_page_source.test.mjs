@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 
 const source = await readFile(new URL("../../src/pages/MapReviewPage.tsx", import.meta.url), "utf8");
 const canvasSource = await readFile(new URL("../../src/components/maps/OdFlowMapCanvas.tsx", import.meta.url), "utf8");
+const cssSource = await readFile(new URL("../../src/styles/index.css", import.meta.url), "utf8");
 
 test("MapReviewPage keeps Explore POI off by default", () => {
   const defaultLayerBlock = source.match(/const defaultExploreLayers:[\s\S]*?};/);
@@ -50,6 +51,23 @@ test("MapReviewPage wires Explore clicks for route, POI and land-use details", (
   assert.match(exploreMapBlock[0], /onPoiClick=\{handleExplorePoiClick\}/);
   assert.match(exploreMapBlock[0], /onLanduseClick=\{handleExploreLanduseClick\}/);
   assert.match(source, /function ContextFeaturePanel/);
+});
+
+test("MapReviewPage formats land-use polygon area as square metres", () => {
+  assert.match(source, /function formatPolygonArea/);
+  assert.match(source, /properties\.areaSqM/);
+  assert.doesNotMatch(source, /Math\.round\(\(feature as ServiceLanduseFeature\)\.properties\.area \?\? 0\)\.toLocaleString\("en-GB"\)\} m²/);
+});
+
+test("MapReviewPage keeps selected detail cards above map legends", () => {
+  const floatingCardRule = cssSource.match(/\.map-review-route-lens--floating\s*\{[\s\S]*?\}/)?.[0] ?? "";
+  const storyLegendRule = cssSource.match(/\.map-review-story-legend\s*\{[\s\S]*?\}/)?.[0] ?? "";
+  const exploreLegendRule = cssSource.match(/\.map-review-explore-legend\s*\{[\s\S]*?\}/)?.[0] ?? "";
+
+  assert.match(source, /\{!\(selectedOdRoute \|\| selectedContextFeature\) \? \(\s*<ExploreMapLegend/);
+  assert.match(floatingCardRule, /z-index:\s*20;/);
+  assert.match(storyLegendRule, /z-index:\s*6;/);
+  assert.match(exploreLegendRule, /z-index:\s*6;/);
 });
 
 test("OdFlowMapCanvas makes POI and land-use layers clickable when handlers exist", () => {

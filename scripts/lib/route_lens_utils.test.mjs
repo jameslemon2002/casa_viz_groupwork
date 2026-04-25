@@ -4,6 +4,7 @@ import {
   classifyLanduse,
   classifyPoi,
   edgeIdFromCoordinates,
+  geometryAreaSquareMetres,
   summarizeNearbyContext,
 } from "./route_lens_utils.mjs";
 
@@ -27,6 +28,22 @@ test("classifyLanduse excludes water and groups common urban polygons", () => {
   assert.equal(classifyLanduse({ landuse: "commercial" }), "commercial");
   assert.equal(classifyLanduse({ amenity: "university" }), "education-civic");
   assert.equal(classifyLanduse({ leisure: "park" }), "leisure-park");
+});
+
+test("geometryAreaSquareMetres converts small London lon/lat polygons to metres", () => {
+  const area = geometryAreaSquareMetres({
+    type: "Polygon",
+    coordinates: [[
+      [-0.1, 51.5],
+      [-0.099, 51.5],
+      [-0.099, 51.501],
+      [-0.1, 51.501],
+      [-0.1, 51.5],
+    ]],
+  });
+
+  assert.ok(area > 7_600, `expected area > 7600m², got ${area}`);
+  assert.ok(area < 7_900, `expected area < 7900m², got ${area}`);
 });
 
 test("summarizeNearbyContext counts nearest context categories", () => {
