@@ -953,12 +953,12 @@ function FunctionRegimeMatrix({ activeStepId }: FunctionRegimeMatrixProps) {
     <article className="map-review-regime-matrix-card" aria-label="Function regime matrix">
       <div className="map-review-regime-matrix-header">
         <div>
-          <p className="map-review-regime-matrix-kicker">Urban Science Lens</p>
-          <h3>Function regime matrix</h3>
+          <p className="map-review-regime-matrix-kicker">Reading the pattern</p>
+          <h3>Function signatures through the day</h3>
         </div>
         <p>
-          Each time stop is interpreted as a mobility regime, linking top hotspots and OD corridors to OSM land-use
-          and POI context.
+          Each time stop has a different service role, read from the strongest hotspots, OD corridors and surrounding
+          land-use context.
         </p>
       </div>
       <div className="map-review-regime-matrix" role="table" aria-label="Function regime matrix">
@@ -1004,8 +1004,8 @@ function FunctionRegimeMatrix({ activeStepId }: FunctionRegimeMatrixProps) {
         })}
       </div>
       <p className="map-review-regime-matrix-note">
-        Matrix levels summarise the dominant function of each story stop from top hotspots, retained OD corridors and
-        OSM context. They are interpretive categories, not demographic or equity measures.
+        Dot levels are a compact reading aid rather than a statistical score. They show which urban functions are most
+        visible in each story stop without turning the article into a dashboard.
       </p>
     </article>
   );
