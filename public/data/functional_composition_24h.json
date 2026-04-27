@@ -1,0 +1,719 @@
+{
+  "version": 1,
+  "generatedAt": "2026-04-27T18:02:35.121Z",
+  "basis": "Contextual exposure of OD route-lens corridors. Route average daily trips weight nearby OSM POI and land-use categories; shares indicate surrounding functional context, not declared trip purpose.",
+  "radiusMetres": {
+    "poi": 220,
+    "landuse": 240
+  },
+  "functions": [
+    {
+      "id": "transit-work",
+      "label": "Transit / work",
+      "shortLabel": "Work",
+      "color": "#6aa7d8"
+    },
+    {
+      "id": "park-leisure",
+      "label": "Park / leisure",
+      "shortLabel": "Park",
+      "color": "#72b98d"
+    },
+    {
+      "id": "culture-retail",
+      "label": "Culture / retail",
+      "shortLabel": "Visit",
+      "color": "#d89c68"
+    },
+    {
+      "id": "night-social",
+      "label": "Night / social",
+      "shortLabel": "Night",
+      "color": "#d7659b"
+    },
+    {
+      "id": "civic-health",
+      "label": "Civic / health",
+      "shortLabel": "Civic",
+      "color": "#75beb5"
+    }
+  ],
+  "profiles": {
+    "weekdays": [
+      {
+        "profileId": "weekdays",
+        "hour": 0,
+        "routeCount": 482,
+        "classifiedRouteCount": 482,
+        "totalAverageDailyTrips": 22.58,
+        "shares": {
+          "transit-work": 0.2381,
+          "park-leisure": 0.1058,
+          "culture-retail": 0.1852,
+          "night-social": 0.1048,
+          "civic-health": 0.3661
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 1,
+        "routeCount": 474,
+        "classifiedRouteCount": 474,
+        "totalAverageDailyTrips": 13.29,
+        "shares": {
+          "transit-work": 0.2541,
+          "park-leisure": 0.1072,
+          "culture-retail": 0.1882,
+          "night-social": 0.107,
+          "civic-health": 0.3435
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 2,
+        "routeCount": 478,
+        "classifiedRouteCount": 478,
+        "totalAverageDailyTrips": 9.14,
+        "shares": {
+          "transit-work": 0.2608,
+          "park-leisure": 0.1132,
+          "culture-retail": 0.1759,
+          "night-social": 0.1103,
+          "civic-health": 0.3398
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 3,
+        "routeCount": 514,
+        "classifiedRouteCount": 514,
+        "totalAverageDailyTrips": 10.53,
+        "shares": {
+          "transit-work": 0.2586,
+          "park-leisure": 0.1055,
+          "culture-retail": 0.1804,
+          "night-social": 0.119,
+          "civic-health": 0.3365
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 4,
+        "routeCount": 533,
+        "classifiedRouteCount": 533,
+        "totalAverageDailyTrips": 26.48,
+        "shares": {
+          "transit-work": 0.2495,
+          "park-leisure": 0.1074,
+          "culture-retail": 0.2133,
+          "night-social": 0.1304,
+          "civic-health": 0.2994
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 5,
+        "routeCount": 551,
+        "classifiedRouteCount": 551,
+        "totalAverageDailyTrips": 74,
+        "shares": {
+          "transit-work": 0.2528,
+          "park-leisure": 0.1104,
+          "culture-retail": 0.2031,
+          "night-social": 0.1246,
+          "civic-health": 0.3091
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 6,
+        "routeCount": 560,
+        "classifiedRouteCount": 560,
+        "totalAverageDailyTrips": 182.39,
+        "shares": {
+          "transit-work": 0.2569,
+          "park-leisure": 0.1018,
+          "culture-retail": 0.201,
+          "night-social": 0.1299,
+          "civic-health": 0.3104
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 7,
+        "routeCount": 558,
+        "classifiedRouteCount": 558,
+        "totalAverageDailyTrips": 270.88,
+        "shares": {
+          "transit-work": 0.2526,
+          "park-leisure": 0.1045,
+          "culture-retail": 0.1959,
+          "night-social": 0.124,
+          "civic-health": 0.323
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 8,
+        "routeCount": 553,
+        "classifiedRouteCount": 553,
+        "totalAverageDailyTrips": 336.32,
+        "shares": {
+          "transit-work": 0.2637,
+          "park-leisure": 0.0991,
+          "culture-retail": 0.1941,
+          "night-social": 0.1255,
+          "civic-health": 0.3176
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 9,
+        "routeCount": 554,
+        "classifiedRouteCount": 554,
+        "totalAverageDailyTrips": 171.85,
+        "shares": {
+          "transit-work": 0.2463,
+          "park-leisure": 0.1089,
+          "culture-retail": 0.1961,
+          "night-social": 0.1129,
+          "civic-health": 0.3358
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 10,
+        "routeCount": 535,
+        "classifiedRouteCount": 535,
+        "totalAverageDailyTrips": 84.28,
+        "shares": {
+          "transit-work": 0.2371,
+          "park-leisure": 0.124,
+          "culture-retail": 0.1961,
+          "night-social": 0.1287,
+          "civic-health": 0.3141
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 11,
+        "routeCount": 508,
+        "classifiedRouteCount": 508,
+        "totalAverageDailyTrips": 63.43,
+        "shares": {
+          "transit-work": 0.206,
+          "park-leisure": 0.1456,
+          "culture-retail": 0.2195,
+          "night-social": 0.1478,
+          "civic-health": 0.2811
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 12,
+        "routeCount": 500,
+        "classifiedRouteCount": 500,
+        "totalAverageDailyTrips": 73.6,
+        "shares": {
+          "transit-work": 0.2212,
+          "park-leisure": 0.1452,
+          "culture-retail": 0.2155,
+          "night-social": 0.147,
+          "civic-health": 0.2711
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 13,
+        "routeCount": 491,
+        "classifiedRouteCount": 491,
+        "totalAverageDailyTrips": 69.26,
+        "shares": {
+          "transit-work": 0.2119,
+          "park-leisure": 0.1464,
+          "culture-retail": 0.2196,
+          "night-social": 0.1437,
+          "civic-health": 0.2784
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 14,
+        "routeCount": 494,
+        "classifiedRouteCount": 494,
+        "totalAverageDailyTrips": 71.62,
+        "shares": {
+          "transit-work": 0.2042,
+          "park-leisure": 0.1474,
+          "culture-retail": 0.2447,
+          "night-social": 0.1508,
+          "civic-health": 0.2529
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 15,
+        "routeCount": 493,
+        "classifiedRouteCount": 493,
+        "totalAverageDailyTrips": 90.77,
+        "shares": {
+          "transit-work": 0.2165,
+          "park-leisure": 0.1387,
+          "culture-retail": 0.2242,
+          "night-social": 0.1413,
+          "civic-health": 0.2793
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 16,
+        "routeCount": 523,
+        "classifiedRouteCount": 523,
+        "totalAverageDailyTrips": 139.85,
+        "shares": {
+          "transit-work": 0.2476,
+          "park-leisure": 0.104,
+          "culture-retail": 0.2249,
+          "night-social": 0.1446,
+          "civic-health": 0.2789
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 17,
+        "routeCount": 541,
+        "classifiedRouteCount": 541,
+        "totalAverageDailyTrips": 238.53,
+        "shares": {
+          "transit-work": 0.2605,
+          "park-leisure": 0.0974,
+          "culture-retail": 0.2185,
+          "night-social": 0.1421,
+          "civic-health": 0.2815
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 18,
+        "routeCount": 536,
+        "classifiedRouteCount": 536,
+        "totalAverageDailyTrips": 165.01,
+        "shares": {
+          "transit-work": 0.2484,
+          "park-leisure": 0.1075,
+          "culture-retail": 0.1923,
+          "night-social": 0.1319,
+          "civic-health": 0.3199
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 19,
+        "routeCount": 512,
+        "classifiedRouteCount": 512,
+        "totalAverageDailyTrips": 98.49,
+        "shares": {
+          "transit-work": 0.2332,
+          "park-leisure": 0.121,
+          "culture-retail": 0.1759,
+          "night-social": 0.1328,
+          "civic-health": 0.3371
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 20,
+        "routeCount": 510,
+        "classifiedRouteCount": 510,
+        "totalAverageDailyTrips": 74.84,
+        "shares": {
+          "transit-work": 0.2378,
+          "park-leisure": 0.1245,
+          "culture-retail": 0.1659,
+          "night-social": 0.1207,
+          "civic-health": 0.3511
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 21,
+        "routeCount": 502,
+        "classifiedRouteCount": 502,
+        "totalAverageDailyTrips": 58.94,
+        "shares": {
+          "transit-work": 0.2279,
+          "park-leisure": 0.1178,
+          "culture-retail": 0.1652,
+          "night-social": 0.1275,
+          "civic-health": 0.3616
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 22,
+        "routeCount": 516,
+        "classifiedRouteCount": 516,
+        "totalAverageDailyTrips": 54.06,
+        "shares": {
+          "transit-work": 0.2364,
+          "park-leisure": 0.1157,
+          "culture-retail": 0.1785,
+          "night-social": 0.1135,
+          "civic-health": 0.3559
+        }
+      },
+      {
+        "profileId": "weekdays",
+        "hour": 23,
+        "routeCount": 508,
+        "classifiedRouteCount": 508,
+        "totalAverageDailyTrips": 41.18,
+        "shares": {
+          "transit-work": 0.2347,
+          "park-leisure": 0.1054,
+          "culture-retail": 0.18,
+          "night-social": 0.116,
+          "civic-health": 0.3639
+        }
+      }
+    ],
+    "weekends": [
+      {
+        "profileId": "weekends",
+        "hour": 0,
+        "routeCount": 416,
+        "classifiedRouteCount": 416,
+        "totalAverageDailyTrips": 42.61,
+        "shares": {
+          "transit-work": 0.2306,
+          "park-leisure": 0.1083,
+          "culture-retail": 0.1953,
+          "night-social": 0.1231,
+          "civic-health": 0.3427
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 1,
+        "routeCount": 399,
+        "classifiedRouteCount": 399,
+        "totalAverageDailyTrips": 26.19,
+        "shares": {
+          "transit-work": 0.2402,
+          "park-leisure": 0.1074,
+          "culture-retail": 0.2075,
+          "night-social": 0.1231,
+          "civic-health": 0.3218
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 2,
+        "routeCount": 421,
+        "classifiedRouteCount": 421,
+        "totalAverageDailyTrips": 20.3,
+        "shares": {
+          "transit-work": 0.244,
+          "park-leisure": 0.1042,
+          "culture-retail": 0.1987,
+          "night-social": 0.1201,
+          "civic-health": 0.333
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 3,
+        "routeCount": 425,
+        "classifiedRouteCount": 425,
+        "totalAverageDailyTrips": 19.27,
+        "shares": {
+          "transit-work": 0.2529,
+          "park-leisure": 0.1057,
+          "culture-retail": 0.1939,
+          "night-social": 0.1353,
+          "civic-health": 0.3122
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 4,
+        "routeCount": 430,
+        "classifiedRouteCount": 430,
+        "totalAverageDailyTrips": 17.88,
+        "shares": {
+          "transit-work": 0.2407,
+          "park-leisure": 0.1131,
+          "culture-retail": 0.1939,
+          "night-social": 0.126,
+          "civic-health": 0.3263
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 5,
+        "routeCount": 428,
+        "classifiedRouteCount": 428,
+        "totalAverageDailyTrips": 29.74,
+        "shares": {
+          "transit-work": 0.2338,
+          "park-leisure": 0.1198,
+          "culture-retail": 0.198,
+          "night-social": 0.1277,
+          "civic-health": 0.3207
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 6,
+        "routeCount": 443,
+        "classifiedRouteCount": 443,
+        "totalAverageDailyTrips": 49.74,
+        "shares": {
+          "transit-work": 0.2488,
+          "park-leisure": 0.1193,
+          "culture-retail": 0.1768,
+          "night-social": 0.11,
+          "civic-health": 0.3451
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 7,
+        "routeCount": 434,
+        "classifiedRouteCount": 434,
+        "totalAverageDailyTrips": 62.55,
+        "shares": {
+          "transit-work": 0.2325,
+          "park-leisure": 0.108,
+          "culture-retail": 0.1922,
+          "night-social": 0.1155,
+          "civic-health": 0.3518
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 8,
+        "routeCount": 436,
+        "classifiedRouteCount": 436,
+        "totalAverageDailyTrips": 81.44,
+        "shares": {
+          "transit-work": 0.218,
+          "park-leisure": 0.1316,
+          "culture-retail": 0.1756,
+          "night-social": 0.1067,
+          "civic-health": 0.3681
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 9,
+        "routeCount": 425,
+        "classifiedRouteCount": 425,
+        "totalAverageDailyTrips": 83.34,
+        "shares": {
+          "transit-work": 0.2257,
+          "park-leisure": 0.132,
+          "culture-retail": 0.1922,
+          "night-social": 0.1184,
+          "civic-health": 0.3317
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 10,
+        "routeCount": 414,
+        "classifiedRouteCount": 414,
+        "totalAverageDailyTrips": 82.47,
+        "shares": {
+          "transit-work": 0.2094,
+          "park-leisure": 0.1485,
+          "culture-retail": 0.2153,
+          "night-social": 0.1362,
+          "civic-health": 0.2906
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 11,
+        "routeCount": 398,
+        "classifiedRouteCount": 398,
+        "totalAverageDailyTrips": 81.77,
+        "shares": {
+          "transit-work": 0.2012,
+          "park-leisure": 0.168,
+          "culture-retail": 0.247,
+          "night-social": 0.1626,
+          "civic-health": 0.2212
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 12,
+        "routeCount": 399,
+        "classifiedRouteCount": 399,
+        "totalAverageDailyTrips": 86.61,
+        "shares": {
+          "transit-work": 0.2041,
+          "park-leisure": 0.173,
+          "culture-retail": 0.2568,
+          "night-social": 0.1612,
+          "civic-health": 0.2049
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 13,
+        "routeCount": 379,
+        "classifiedRouteCount": 379,
+        "totalAverageDailyTrips": 84.68,
+        "shares": {
+          "transit-work": 0.1923,
+          "park-leisure": 0.1869,
+          "culture-retail": 0.2581,
+          "night-social": 0.1781,
+          "civic-health": 0.1846
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 14,
+        "routeCount": 372,
+        "classifiedRouteCount": 372,
+        "totalAverageDailyTrips": 82.39,
+        "shares": {
+          "transit-work": 0.1837,
+          "park-leisure": 0.1817,
+          "culture-retail": 0.2843,
+          "night-social": 0.1792,
+          "civic-health": 0.1711
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 15,
+        "routeCount": 359,
+        "classifiedRouteCount": 359,
+        "totalAverageDailyTrips": 82.05,
+        "shares": {
+          "transit-work": 0.1896,
+          "park-leisure": 0.1815,
+          "culture-retail": 0.2856,
+          "night-social": 0.1768,
+          "civic-health": 0.1665
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 16,
+        "routeCount": 367,
+        "classifiedRouteCount": 367,
+        "totalAverageDailyTrips": 81.63,
+        "shares": {
+          "transit-work": 0.1873,
+          "park-leisure": 0.1734,
+          "culture-retail": 0.2706,
+          "night-social": 0.17,
+          "civic-health": 0.1987
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 17,
+        "routeCount": 354,
+        "classifiedRouteCount": 354,
+        "totalAverageDailyTrips": 73.56,
+        "shares": {
+          "transit-work": 0.1982,
+          "park-leisure": 0.1697,
+          "culture-retail": 0.2707,
+          "night-social": 0.1596,
+          "civic-health": 0.2018
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 18,
+        "routeCount": 355,
+        "classifiedRouteCount": 355,
+        "totalAverageDailyTrips": 65.37,
+        "shares": {
+          "transit-work": 0.205,
+          "park-leisure": 0.1656,
+          "culture-retail": 0.2436,
+          "night-social": 0.1492,
+          "civic-health": 0.2366
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 19,
+        "routeCount": 348,
+        "classifiedRouteCount": 348,
+        "totalAverageDailyTrips": 53.41,
+        "shares": {
+          "transit-work": 0.2137,
+          "park-leisure": 0.14,
+          "culture-retail": 0.229,
+          "night-social": 0.1414,
+          "civic-health": 0.2759
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 20,
+        "routeCount": 352,
+        "classifiedRouteCount": 352,
+        "totalAverageDailyTrips": 46.73,
+        "shares": {
+          "transit-work": 0.2016,
+          "park-leisure": 0.1355,
+          "culture-retail": 0.2165,
+          "night-social": 0.1253,
+          "civic-health": 0.3211
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 21,
+        "routeCount": 361,
+        "classifiedRouteCount": 361,
+        "totalAverageDailyTrips": 41.05,
+        "shares": {
+          "transit-work": 0.2243,
+          "park-leisure": 0.1212,
+          "culture-retail": 0.1975,
+          "night-social": 0.1247,
+          "civic-health": 0.3323
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 22,
+        "routeCount": 388,
+        "classifiedRouteCount": 388,
+        "totalAverageDailyTrips": 43.66,
+        "shares": {
+          "transit-work": 0.2238,
+          "park-leisure": 0.1119,
+          "culture-retail": 0.1979,
+          "night-social": 0.1187,
+          "civic-health": 0.3477
+        }
+      },
+      {
+        "profileId": "weekends",
+        "hour": 23,
+        "routeCount": 418,
+        "classifiedRouteCount": 418,
+        "totalAverageDailyTrips": 43.62,
+        "shares": {
+          "transit-work": 0.2316,
+          "park-leisure": 0.1121,
+          "culture-retail": 0.1878,
+          "night-social": 0.1206,
+          "civic-health": 0.3479
+        }
+      }
+    ]
+  }
+}

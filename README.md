@@ -14,7 +14,7 @@ Repository:
 
 The project asks how the same inner London docking-bike network is used differently across a typical day. It reads bike-share demand as a temporal layer of urban accessibility: fixed docking infrastructure is reweighted by commuting peaks, leisure rhythms, park use and the night-time economy.
 
-The main deliverable is a single guided story page with a full-screen hero, scroll-driven text, a fixed map stage, inline evidence cards, a function-regime matrix, an About/Method/References appendix and a final free-exploration route lens.
+The main deliverable is a single guided story page with a full-screen hero, scroll-driven text, a fixed map stage, inline evidence cards, a 24-hour functional-composition strip, an About/Method/References appendix and a final free-exploration route lens.
 
 ## Current Version
 
@@ -32,6 +32,7 @@ There is no separate PR workflow required for the coursework submission. The pub
 - Weekday and weekend time stops in a guided scrollytelling sequence.
 - Functional anchors and area labels for work, parks, leisure, and night-city contexts.
 - Compact evidence charts for selected story moments.
+- A 24-hour weekday/weekend functional-composition strip derived from routed demand and OSM context.
 - A free-exploration panel for profile, hour, and layer switching.
 - An About, Method and References appendix for data assumptions, modelling limits, attribution and literature links.
 
@@ -55,6 +56,9 @@ The live site uses prebuilt assets in `public/data/`, including:
 - `stations.geojson`
 - `route_flows.json`
 - `route_flows/*.json`
+- `functional_composition_24h.json`
+- `route_concentration_story.json`
+- `temporal_centrality_story.json`
 - `london-boroughs.geojson`
 - `london-outline.geojson`
 - `service_greenspaces.geojson`
@@ -100,6 +104,8 @@ npm run data:fetch:street-network
 npm run data:fetch:greenspaces
 npm run data:build:route-flows
 npm run data:optimize:route-flows
+npm run data:build:functional-composition
+npm run data:build:route-concentration
 npm run build
 ```
 

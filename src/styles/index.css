@@ -1380,7 +1380,8 @@ body {
 
 .map-review-story-legend {
   position: absolute;
-  right: 1rem;
+  left: 1rem;
+  right: auto;
   bottom: 4rem;
   z-index: 6;
   display: grid;
@@ -1474,8 +1475,8 @@ body {
 
 .map-review-track-shell {
   display: grid;
-  grid-template-columns: 9.15rem minmax(0, 1fr);
-  gap: 1.55rem;
+  grid-template-columns: 6.35rem minmax(0, 1fr);
+  gap: 1rem;
   align-items: start;
 }
 
@@ -1492,14 +1493,14 @@ body {
 .map-review-time-rail-kicker {
   margin: 0 0 0.3rem;
   color: rgba(167, 202, 253, 0.76);
-  font-size: 0.68rem;
+  font-size: 0.58rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .map-review-time-rail-line {
   position: absolute;
-  left: 1.22rem;
+  left: 0.92rem;
   top: 1.95rem;
   bottom: 1.55rem;
   width: 2px;
@@ -1533,7 +1534,7 @@ body {
   display: grid;
   gap: 0.34rem;
   min-height: 5.2rem;
-  padding: 0.52rem 0.35rem 0.52rem 2.75rem;
+  padding: 0.52rem 0.15rem 0.52rem 2.1rem;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -1547,7 +1548,7 @@ body {
 .map-review-time-stop::before {
   content: "";
   position: absolute;
-  left: 1rem;
+  left: 0.7rem;
   top: 1.32rem;
   width: 0.48rem;
   height: 0.48rem;
@@ -1559,11 +1560,11 @@ body {
 
 .map-review-time-stop span {
   width: fit-content;
-  min-width: 2.75rem;
+  min-width: 2.35rem;
   padding: 0.22rem 0.34rem 0.27rem;
   border: 2px solid transparent;
   background: transparent;
-  font-size: 1.18rem;
+  font-size: 1.04rem;
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -1571,7 +1572,7 @@ body {
 
 .map-review-time-stop small {
   color: rgba(184, 205, 231, 0.58);
-  font-size: 0.68rem;
+  font-size: 0.56rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -2106,31 +2107,26 @@ body {
 
 .map-review-evidence-card {
   margin-top: 1.35rem;
-  padding: 1rem;
-  border: 1px solid rgba(126, 164, 219, 0.14);
-  border-radius: 8px;
-  background: rgba(9, 17, 31, 0.24);
+  padding: 0.15rem 0 0.15rem 0.95rem;
+  border-left: 1px solid rgba(126, 164, 219, 0.32);
+  background: transparent;
 }
 
-.map-review-regime-matrix-card {
+.map-review-functional-composition-card {
   margin-top: 1.2rem;
-  padding: 1rem;
-  border: 1px solid rgba(126, 164, 219, 0.16);
-  border-radius: 10px;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(134, 239, 255, 0.1), transparent 13rem),
-    rgba(9, 17, 31, 0.24);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 0.95rem 0 0.95rem 0.95rem;
+  border-left: 1px solid rgba(126, 164, 219, 0.26);
+  background: linear-gradient(90deg, rgba(9, 17, 31, 0.16), transparent 82%);
 }
 
-.map-review-regime-matrix-header {
+.map-review-functional-composition-header {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 0.85rem;
   align-items: start;
 }
 
-.map-review-regime-matrix-kicker {
+.map-review-functional-composition-kicker {
   margin: 0;
   color: rgba(147, 231, 255, 0.82);
   font-size: 0.62rem;
@@ -2139,101 +2135,353 @@ body {
   text-transform: uppercase;
 }
 
-.map-review-regime-matrix-card h3 {
+.map-review-functional-composition-card h3 {
   margin: 0.22rem 0 0;
   color: #f7fbff;
   font-family: "Fraunces", Georgia, serif;
-  font-size: 1.35rem;
+  font-size: 1.32rem;
   line-height: 1;
   letter-spacing: -0.035em;
 }
 
-.map-review-regime-matrix-header p {
+.map-review-functional-composition-header p {
   margin: 0;
   color: rgba(231, 239, 250, 0.7);
   font-family: "Source Serif 4", Georgia, serif;
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   line-height: 1.55;
 }
 
-.map-review-regime-matrix {
-  display: grid;
-  gap: 0.32rem;
-  margin-top: 0.95rem;
+.map-review-functional-composition-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem 0.66rem;
+  margin-top: 0.85rem;
 }
 
-.map-review-regime-matrix-row {
-  display: grid;
-  grid-template-columns: minmax(8.4rem, 1.35fr) repeat(5, minmax(2.25rem, 0.72fr));
-  gap: 0.32rem;
+.map-review-functional-composition-legend span {
+  display: inline-flex;
   align-items: center;
-  padding: 0.44rem 0.48rem;
-  border: 1px solid rgba(167, 202, 253, 0.08);
-  border-radius: 7px;
-  background: rgba(16, 29, 50, 0.18);
+  gap: 0.32rem;
+  color: rgba(226, 236, 250, 0.72);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.map-review-regime-matrix-row--head {
-  border-color: transparent;
-  background: transparent;
+.map-review-functional-composition-legend i {
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 999px;
+  opacity: 0.88;
+}
+
+.map-review-functional-composition-grid {
+  display: grid;
+  gap: 0.18rem;
+  margin-top: 0.8rem;
+}
+
+.map-review-functional-composition-row {
+  display: grid;
+  grid-template-columns: 5.3rem minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: center;
+  min-height: 2.2rem;
+  padding: 0.36rem 0.42rem;
+  border-radius: 7px;
+}
+
+.map-review-functional-composition-row--head {
+  min-height: auto;
   color: rgba(214, 231, 250, 0.54);
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
-.map-review-regime-matrix-row--active {
-  border-color: rgba(159, 233, 255, 0.38);
-  background: rgba(104, 189, 255, 0.1);
+.map-review-functional-composition-row--active {
+  background: rgba(104, 189, 255, 0.08);
 }
 
-.map-review-regime-matrix-row strong,
-.map-review-regime-matrix-row small {
+.map-review-functional-composition-row > span:first-child {
+  color: rgba(247, 251, 255, 0.74);
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-review-functional-composition-row strong,
+.map-review-functional-composition-row small {
   display: block;
 }
 
-.map-review-regime-matrix-row strong {
-  color: rgba(247, 251, 255, 0.94);
-  font-size: 0.78rem;
+.map-review-functional-composition-row strong {
+  color: rgba(247, 251, 255, 0.88);
+  font-size: 0.74rem;
+  line-height: 1.2;
+}
+
+.map-review-functional-composition-row small {
+  margin-top: 0.08rem;
+  color: rgba(214, 231, 250, 0.46);
+  font-size: 0.62rem;
   line-height: 1.25;
 }
 
-.map-review-regime-matrix-row small {
-  margin-top: 0.12rem;
-  color: rgba(214, 231, 250, 0.54);
-  font-size: 0.68rem;
-  line-height: 1.25;
-}
-
-.map-review-regime-cell {
-  display: inline-flex;
-  gap: 0.16rem;
-  justify-content: center;
-}
-
-.map-review-regime-dot {
-  width: 0.42rem;
-  height: 0.42rem;
+.map-review-functional-strip {
+  display: flex;
+  width: 100%;
+  height: 0.78rem;
+  overflow: hidden;
   border-radius: 999px;
-  background: rgba(205, 221, 241, 0.18);
+  background: rgba(205, 221, 241, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
-.map-review-regime-dot--on {
-  background: #9fe9ff;
+.map-review-functional-strip--active {
+  height: 0.92rem;
+  box-shadow:
+    0 0 0 1px rgba(230, 239, 249, 0.64),
+    0 0 14px rgba(159, 233, 255, 0.12);
 }
 
-.map-review-regime-cell--park-leisure .map-review-regime-dot--on { background: #64e18f; }
-.map-review-regime-cell--culture-retail .map-review-regime-dot--on { background: #ffb15e; }
-.map-review-regime-cell--night-social .map-review-regime-dot--on { background: #ff598b; }
-.map-review-regime-cell--civic-health .map-review-regime-dot--on { background: #6ae0bc; }
-.map-review-regime-cell--transit-work .map-review-regime-dot--on { background: #4ebcff; }
+.map-review-functional-strip i {
+  min-width: 0.04rem;
+  height: 100%;
+  opacity: 0.84;
+}
 
-.map-review-regime-matrix-note {
-  margin: 0.8rem 0 0;
+.map-review-functional-strip--active i {
+  opacity: 0.95;
+}
+
+.map-review-functional-composition-note {
+  margin: 0.72rem 0 0;
   color: rgba(214, 231, 250, 0.58);
   font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.map-review-story-figure {
+  width: min(26rem, 100%);
+  margin: 1.55rem auto 0;
+  padding: 0.86rem 0 0.86rem 0.95rem;
+  border-left: 1px solid rgba(126, 164, 219, 0.28);
+  background: linear-gradient(90deg, rgba(9, 17, 31, 0.18), transparent 86%);
+}
+
+.map-review-route-concentration-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.map-review-route-concentration-kicker {
+  margin: 0;
+  color: rgba(245, 183, 126, 0.9);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.map-review-story-figure h3 {
+  margin: 0;
+  color: #f7fbff;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.08rem;
+  line-height: 1.02;
+  letter-spacing: -0.024em;
+}
+
+.map-review-route-concentration-copy {
+  margin: 0.55rem 0 0;
+  color: rgba(231, 239, 250, 0.7);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.78rem;
   line-height: 1.55;
+}
+
+.map-review-route-concentration-table {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1rem;
+}
+
+.map-review-route-inequality-grid {
+  display: grid;
+  grid-template-columns: 7.25rem minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: center;
+  margin-top: 0.8rem;
+}
+
+.map-review-lorenz {
+  width: 100%;
+  max-width: 7.25rem;
+  overflow: visible;
+}
+
+.map-review-lorenz-diagonal {
+  fill: none;
+  stroke: rgba(214, 231, 250, 0.22);
+  stroke-dasharray: 3 4;
+  stroke-width: 1;
+}
+
+.map-review-lorenz-line {
+  fill: none;
+  stroke: rgba(216, 156, 104, 0.9);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+}
+
+.map-review-lorenz text {
+  fill: rgba(214, 231, 250, 0.52);
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 0.44rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.map-review-route-concentration-head,
+.map-review-route-concentration-row {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr) 3rem;
+  gap: 0.48rem;
+  align-items: center;
+}
+
+.map-review-route-concentration-head {
+  color: rgba(214, 231, 250, 0.5);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.map-review-route-concentration-group {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.map-review-route-concentration-group > b {
+  margin: 0.2rem 0 0.05rem;
+  color: rgba(147, 231, 255, 0.74);
+  font-size: 0.62rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.map-review-route-concentration-row {
+  min-height: 1.72rem;
+  padding: 0.18rem 0.28rem;
+  border-radius: 7px;
+}
+
+.map-review-route-concentration-row--active {
+  background: rgba(104, 189, 255, 0.08);
+}
+
+.map-review-route-concentration-time {
+  color: rgba(247, 251, 255, 0.8);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-review-route-concentration-track {
+  display: block;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(205, 221, 241, 0.11);
+}
+
+.map-review-route-concentration-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(106, 167, 216, 0.82), rgba(216, 156, 104, 0.9));
+}
+
+.map-review-route-concentration-row strong {
+  color: rgba(247, 251, 255, 0.86);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.map-review-route-concentration-row small {
+  color: rgba(214, 231, 250, 0.6);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.map-review-route-concentration-note {
+  margin: 0.78rem 0 0;
+  color: rgba(214, 231, 250, 0.58);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.map-review-centrality-grid {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.78rem;
+}
+
+.map-review-centrality-head,
+.map-review-centrality-row {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 1fr) repeat(4, 2rem);
+  gap: 0.38rem;
+  align-items: center;
+}
+
+.map-review-centrality-head {
+  color: rgba(214, 231, 250, 0.48);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.map-review-centrality-row > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-width: 0;
+  color: rgba(247, 251, 255, 0.76);
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+
+.map-review-centrality-row i {
+  flex: 0 0 auto;
+  width: 0.46rem;
+  height: 0.46rem;
+  border-radius: 999px;
+}
+
+.map-review-centrality-rank {
+  display: grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 999px;
+  background: rgba(205, 221, 241, 0.12);
+  color: rgba(247, 251, 255, 0.78);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-review-centrality-rank--active {
+  background: rgba(159, 233, 255, 0.22);
+  color: #f7fbff;
 }
 
 .map-review-explore {
@@ -2621,29 +2869,32 @@ body {
 
 .map-review-explore-legend {
   position: absolute;
-  right: 1rem;
-  bottom: 1rem;
+  left: 0.75rem;
+  right: auto;
+  bottom: 0.75rem;
   z-index: 6;
   display: grid;
-  gap: 0.72rem;
-  width: min(22rem, calc(100% - 2rem));
-  padding: 0.82rem 0.9rem;
+  gap: 0.48rem;
+  width: min(14.5rem, calc(100% - 1.5rem));
+  max-height: calc(100% - 1.5rem);
+  overflow: auto;
+  padding: 0.62rem 0.68rem;
   border: 1px solid rgba(201, 223, 255, 0.14);
-  border-radius: 10px;
-  background: rgba(17, 27, 45, 0.58);
+  border-radius: 6px;
+  background: rgba(17, 27, 45, 0.5);
   color: rgba(239, 247, 255, 0.82);
-  box-shadow: 0 18px 44px rgba(7, 13, 24, 0.22);
-  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 30px rgba(7, 13, 24, 0.18);
+  backdrop-filter: blur(10px);
 }
 
 .map-review-explore-legend-section {
   display: grid;
-  gap: 0.42rem;
+  gap: 0.28rem;
 }
 
 .map-review-explore-legend strong {
   color: rgba(247, 251, 255, 0.94);
-  font-size: 0.66rem;
+  font-size: 0.56rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -2651,16 +2902,16 @@ body {
 .map-review-explore-legend span {
   display: inline-flex;
   align-items: center;
-  gap: 0.42rem;
+  gap: 0.32rem;
   min-width: 0;
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   line-height: 1.25;
 }
 
 .map-review-explore-legend-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.32rem 0.52rem;
+  grid-template-columns: 1fr;
+  gap: 0.24rem;
 }
 
 .map-review-legend-line {
@@ -2866,6 +3117,10 @@ body {
     border-top: 1px solid rgba(101, 138, 194, 0.16);
   }
 
+  .map-review-story-figure {
+    margin-left: 0;
+  }
+
   .map-review-anchor {
     opacity: 0.84;
   }
@@ -2954,17 +3209,39 @@ body {
     padding: 0.85rem;
   }
 
-  .map-review-regime-matrix-card {
+  .map-review-functional-composition-card {
     padding: 0.85rem;
-    overflow-x: auto;
   }
 
-  .map-review-regime-matrix-header {
+  .map-review-functional-composition-header {
     grid-template-columns: 1fr;
   }
 
-  .map-review-regime-matrix {
-    min-width: 31rem;
+  .map-review-functional-composition-row {
+    grid-template-columns: 4.6rem minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.34rem;
+  }
+
+  .map-review-story-figure {
+    padding: 0.85rem;
+    border-left: 0;
+    border-top: 1px solid rgba(126, 164, 219, 0.24);
+  }
+
+  .map-review-route-concentration-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.24rem;
+  }
+
+  .map-review-route-concentration-head,
+  .map-review-route-concentration-row {
+    grid-template-columns: 2.3rem minmax(0, 1fr) 2.8rem;
+    gap: 0.38rem;
+  }
+
+  .map-review-route-concentration-head {
+    font-size: 0.5rem;
   }
 
   .map-review-explore {
@@ -2984,9 +3261,9 @@ body {
 
   .map-review-explore-legend {
     left: 0.65rem;
-    right: 0.65rem;
+    right: auto;
     bottom: 0.65rem;
-    width: auto;
+    width: min(13.5rem, calc(100% - 1.3rem));
   }
 
   .map-review-route-lens--floating + .map-review-explore-legend {

@@ -47,13 +47,80 @@ type ReviewTrackDefinition = {
   steps: ReviewStepDefinition[];
 };
 
-type RegimeFunctionId = "transit-work" | "park-leisure" | "culture-retail" | "night-social" | "civic-health";
+type FunctionalMixId = "transit-work" | "park-leisure" | "culture-retail" | "night-social" | "civic-health";
 
-type FunctionRegimeRow = {
-  stepId: string;
+type FunctionalMixCategory = {
+  id: FunctionalMixId;
   label: string;
-  regime: string;
-  values: Record<RegimeFunctionId, 0 | 1 | 2 | 3>;
+  shortLabel: string;
+  color: string;
+};
+
+type FunctionalCompositionHour = {
+  profileId: ReviewStepProfileId;
+  hour: number;
+  routeCount: number;
+  classifiedRouteCount: number;
+  totalAverageDailyTrips: number;
+  shares: Record<FunctionalMixId, number>;
+};
+
+type FunctionalCompositionDataset = {
+  version: number;
+  basis: string;
+  functions: FunctionalMixCategory[];
+  profiles: Record<ReviewStepProfileId, FunctionalCompositionHour[]>;
+};
+
+type RouteConcentrationStop = {
+  id: string;
+  profileId: ReviewStepProfileId;
+  hour: number;
+  label: string;
+  slotLabel: string;
+  routeCount: number;
+  totalAverageDailyTrips: number;
+  top10AverageDailyTrips: number;
+  top10Share: number;
+  top25Share: number;
+  herfindahl: number;
+  gini: number;
+  lorenzCurve: Array<{ x: number; y: number }>;
+  effectiveCorridors: number;
+  dominantCorridor: string | null;
+};
+
+type RouteConcentrationDataset = {
+  version: number;
+  basis: string;
+  storyStops: RouteConcentrationStop[];
+};
+
+type TemporalCentralityAnchor = {
+  id: string;
+  label: string;
+  color: string;
+};
+
+type TemporalCentralityStop = {
+  id: string;
+  profileId: ReviewStepProfileId;
+  hour: number;
+  label: string;
+  slotLabel: string;
+  matchedAverageDailyTrips: number;
+  anchors: Array<{
+    id: string;
+    share: number;
+    rank: number;
+  }>;
+};
+
+type TemporalCentralityDataset = {
+  version: number;
+  basis: string;
+  anchors: TemporalCentralityAnchor[];
+  storyStops: TemporalCentralityStop[];
 };
 
 const exploreLayerOptions: Array<{ id: ExploreLayerId; label: string }> = [
@@ -98,70 +165,28 @@ const landuseLabels: Record<LanduseCategory, string> = {
 const poiLegendCategories: PoiCategory[] = ["transit", "office-work", "food-night", "retail", "culture-tourism", "sport-leisure"];
 const landuseLegendCategories: LanduseCategory[] = ["commercial", "retail", "residential", "education-civic", "leisure-park", "industrial"];
 
-const regimeFunctionColumns: Array<{ id: RegimeFunctionId; label: string; short: string }> = [
-  { id: "transit-work", label: "Transit / work", short: "Work" },
-  { id: "park-leisure", label: "Park / leisure", short: "Park" },
-  { id: "culture-retail", label: "Culture / retail", short: "Visit" },
-  { id: "night-social", label: "Night / social", short: "Night" },
-  { id: "civic-health", label: "Civic / health", short: "Civic" },
+const fallbackFunctionalMixCategories: FunctionalMixCategory[] = [
+  { id: "transit-work", label: "Transit / work", shortLabel: "Work", color: "#6aa7d8" },
+  { id: "park-leisure", label: "Park / leisure", shortLabel: "Park", color: "#72b98d" },
+  { id: "culture-retail", label: "Culture / retail", shortLabel: "Visit", color: "#d89c68" },
+  { id: "night-social", label: "Night / social", shortLabel: "Night", color: "#d7659b" },
+  { id: "civic-health", label: "Civic / health", shortLabel: "Civic", color: "#75beb5" },
 ];
 
-const functionRegimeRows: FunctionRegimeRow[] = [
-  {
-    stepId: "weekdays-08",
-    label: "Weekday 08",
-    regime: "Rail-employment access",
-    values: { "transit-work": 3, "park-leisure": 0, "culture-retail": 1, "night-social": 0, "civic-health": 0 },
-  },
-  {
-    stepId: "weekdays-13",
-    label: "Weekday 13",
-    regime: "Mixed central short trips",
-    values: { "transit-work": 1, "park-leisure": 2, "culture-retail": 2, "night-social": 0, "civic-health": 1 },
-  },
-  {
-    stepId: "weekdays-17",
-    label: "Weekday 17",
-    regime: "Employment release",
-    values: { "transit-work": 3, "park-leisure": 0, "culture-retail": 1, "night-social": 0, "civic-health": 0 },
-  },
-  {
-    stepId: "weekdays-23",
-    label: "Weekday 23",
-    regime: "Late-evening fragments",
-    values: { "transit-work": 1, "park-leisure": 0, "culture-retail": 1, "night-social": 3, "civic-health": 2 },
-  },
-  {
-    stepId: "weekends-08",
-    label: "Weekend 08",
-    regime: "Early leisure field",
-    values: { "transit-work": 0, "park-leisure": 2, "culture-retail": 2, "night-social": 0, "civic-health": 0 },
-  },
-  {
-    stepId: "weekends-13",
-    label: "Weekend 13",
-    regime: "Park accessibility",
-    values: { "transit-work": 0, "park-leisure": 3, "culture-retail": 2, "night-social": 0, "civic-health": 0 },
-  },
-  {
-    stepId: "weekends-17",
-    label: "Weekend 17",
-    regime: "Lingering leisure",
-    values: { "transit-work": 0, "park-leisure": 3, "culture-retail": 2, "night-social": 1, "civic-health": 0 },
-  },
-  {
-    stepId: "weekends-23",
-    label: "Weekend 23",
-    regime: "Night-time social geography",
-    values: { "transit-work": 1, "park-leisure": 0, "culture-retail": 1, "night-social": 3, "civic-health": 1 },
-  },
+const functionalDayparts = [
+  { id: "night", label: "00-05", description: "Night", hours: [0, 1, 2, 3, 4, 5] },
+  { id: "morning", label: "06-09", description: "Morning", hours: [6, 7, 8, 9] },
+  { id: "late-morning", label: "10-12", description: "Late morning", hours: [10, 11, 12] },
+  { id: "afternoon", label: "13-16", description: "Afternoon", hours: [13, 14, 15, 16] },
+  { id: "evening", label: "17-19", description: "Evening", hours: [17, 18, 19] },
+  { id: "late-evening", label: "20-23", description: "Late evening", hours: [20, 21, 22, 23] },
 ];
 
 const reviewTracks: ReviewTrackDefinition[] = [
   {
     id: "weekday",
     label: "Weekday",
-    eyebrow: "Weekday guided story",
+    eyebrow: "Typical weekday",
     intro:
       "Across weekdays, the same docking network moves through a sequence of mobility regimes: rail-employment access in the morning, mixed central short trips at midday, employment release in the evening, and a thinner late-evening service geography.",
     steps: [
@@ -230,7 +255,7 @@ const reviewTracks: ReviewTrackDefinition[] = [
   {
     id: "weekend",
     label: "Weekend",
-    eyebrow: "Weekend guided story",
+    eyebrow: "Typical weekend",
     intro:
       "Weekends follow a different time structure. The morning starts thinner and more dispersed, afternoon and early evening consolidate into a park and leisure accessibility regime, and late night recentres on a social geography rather than the weekday employment core.",
     steps: [
@@ -501,6 +526,99 @@ function summaryForStep(routeSlice: RouteFlowSlice, hourlySlice: HourlySlice): R
       .slice(0, 4)
       .map((flow) => `${compactPlace(flow.oName)} to ${compactPlace(flow.dName)}`),
   };
+}
+
+function useFunctionalComposition() {
+  const [dataset, setDataset] = useState<FunctionalCompositionDataset | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(`${import.meta.env.BASE_URL}data/functional_composition_24h.json`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Failed to load functional composition: ${response.status}`);
+        return response.json();
+      })
+      .then((payload: FunctionalCompositionDataset) => {
+        if (cancelled) return;
+        setDataset(payload);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setDataset(null);
+        setError(err instanceof Error ? err.message : "Failed to load functional composition");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { dataset, error };
+}
+
+function useRouteConcentration() {
+  const [dataset, setDataset] = useState<RouteConcentrationDataset | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(`${import.meta.env.BASE_URL}data/route_concentration_story.json`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Failed to load route concentration: ${response.status}`);
+        return response.json();
+      })
+      .then((payload: RouteConcentrationDataset) => {
+        if (cancelled) return;
+        setDataset(payload);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setDataset(null);
+        setError(err instanceof Error ? err.message : "Failed to load route concentration");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { dataset, error };
+}
+
+function useTemporalCentrality() {
+  const [dataset, setDataset] = useState<TemporalCentralityDataset | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(`${import.meta.env.BASE_URL}data/temporal_centrality_story.json`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Failed to load temporal centrality: ${response.status}`);
+        return response.json();
+      })
+      .then((payload: TemporalCentralityDataset) => {
+        if (cancelled) return;
+        setDataset(payload);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setDataset(null);
+        setError(err instanceof Error ? err.message : "Failed to load temporal centrality");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { dataset, error };
 }
 
 function formatCompact(value: number) {
@@ -795,7 +913,7 @@ type StoryMapLegendProps = {
 
 function StoryMapLegend({ colorMode }: StoryMapLegendProps) {
   return (
-    <aside className="map-review-story-legend" aria-label="Guided story map legend">
+    <aside className="map-review-story-legend" aria-label="Main map legend">
       <div className="map-review-explore-legend-section">
         <strong>Map layers</strong>
         <span><i className="map-review-legend-line map-review-legend-line--corridor" />clickable OD corridor</span>
@@ -815,13 +933,13 @@ function StoryRoutePanel({ route, onClear }: StoryRoutePanelProps) {
   return (
     <aside
       className="map-review-route-lens map-review-route-lens--floating map-review-route-lens--story"
-      aria-label="Guided story selected route"
+      aria-label="Selected route in the main map"
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >
       <div className="map-review-route-lens-header">
         <div>
-          <p className="map-review-route-lens-kicker">Story route</p>
+          <p className="map-review-route-lens-kicker">Selected route</p>
           <h3>{compactPlace(route.origin)} to {compactPlace(route.destination)}</h3>
         </div>
         <button type="button" onClick={onClear}>Clear</button>
@@ -944,70 +1062,315 @@ function ExploreMapLegend({ layers, colorMode }: ExploreMapLegendProps) {
   );
 }
 
-type FunctionRegimeMatrixProps = {
-  activeStepId: string;
+type FunctionalCompositionDaypartChartProps = {
+  dataset: FunctionalCompositionDataset | null;
+  error: string | null;
+  activeProfileId: ReviewStepProfileId;
+  activeHour: number;
 };
 
-function FunctionRegimeMatrix({ activeStepId }: FunctionRegimeMatrixProps) {
+type FunctionalCompositionAggregate = {
+  label: string;
+  description: string;
+  hours: number[];
+  routeCount: number;
+  classifiedRouteCount: number;
+  totalAverageDailyTrips: number;
+  shares: Record<FunctionalMixId, number>;
+};
+
+function formatShareLabel(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
+
+function aggregateFunctionalComposition(
+  rows: FunctionalCompositionHour[] | undefined,
+  daypart: (typeof functionalDayparts)[number],
+  functions: FunctionalMixCategory[],
+): FunctionalCompositionAggregate | undefined {
+  if (!rows) return undefined;
+  const selectedRows = rows.filter((row) => daypart.hours.includes(row.hour));
+  if (selectedRows.length === 0) return undefined;
+
+  const totals = Object.fromEntries(functions.map((category) => [category.id, 0])) as Record<FunctionalMixId, number>;
+  let weightTotal = 0;
+  let routeCount = 0;
+  let classifiedRouteCount = 0;
+
+  for (const row of selectedRows) {
+    const weight = Math.max(0, row.totalAverageDailyTrips);
+    weightTotal += weight;
+    routeCount += row.routeCount;
+    classifiedRouteCount += row.classifiedRouteCount;
+    for (const category of functions) {
+      totals[category.id] += (row.shares[category.id] ?? 0) * weight;
+    }
+  }
+
+  const denominator = weightTotal > 0 ? weightTotal : selectedRows.length;
+  const shares = Object.fromEntries(functions.map((category) => {
+    const fallback = selectedRows.reduce((sum, row) => sum + (row.shares[category.id] ?? 0), 0) / selectedRows.length;
+    return [category.id, weightTotal > 0 ? totals[category.id] / denominator : fallback];
+  })) as Record<FunctionalMixId, number>;
+
+  return {
+    label: daypart.label,
+    description: daypart.description,
+    hours: daypart.hours,
+    routeCount,
+    classifiedRouteCount,
+    totalAverageDailyTrips: Number(weightTotal.toFixed(2)),
+    shares,
+  };
+}
+
+function FunctionalCompositionStrip({
+  mix,
+  functions,
+  active,
+}: {
+  mix: FunctionalCompositionAggregate | undefined;
+  functions: FunctionalMixCategory[];
+  active: boolean;
+}) {
+  const label = mix
+    ? functions.map((category) => `${category.shortLabel} ${formatShareLabel(mix.shares[category.id] ?? 0)}`).join(" · ")
+    : "Functional mix unavailable";
+
   return (
-    <article className="map-review-regime-matrix-card" aria-label="Function regime matrix">
-      <div className="map-review-regime-matrix-header">
+    <div
+      className={active ? "map-review-functional-strip map-review-functional-strip--active" : "map-review-functional-strip"}
+      title={label}
+      aria-label={label}
+    >
+      {functions.map((category) => {
+        const share = mix?.shares[category.id] ?? 0;
+        return share > 0.001 ? (
+          <i
+            key={category.id}
+            style={{ backgroundColor: category.color, flexGrow: Math.max(share, 0.006) }}
+            aria-hidden="true"
+          />
+        ) : null;
+      })}
+    </div>
+  );
+}
+
+function FunctionalCompositionDaypartChart({ dataset, error, activeProfileId, activeHour }: FunctionalCompositionDaypartChartProps) {
+  const functions = dataset?.functions ?? fallbackFunctionalMixCategories;
+  const rows = functionalDayparts.map((daypart) => {
+    const weekday = aggregateFunctionalComposition(dataset?.profiles.weekdays, daypart, functions);
+    const weekend = aggregateFunctionalComposition(dataset?.profiles.weekends, daypart, functions);
+    return { daypart, weekday, weekend };
+  });
+
+  return (
+    <article className="map-review-functional-composition-card" aria-label="Functional composition by time of day">
+      <div className="map-review-functional-composition-header">
         <div>
-          <p className="map-review-regime-matrix-kicker">Reading the pattern</p>
-          <h3>Function signatures through the day</h3>
+          <p className="map-review-functional-composition-kicker">Reading the pattern</p>
+          <h3>Functional mix by time of day</h3>
         </div>
         <p>
-          Each time stop has a different service role, read from the strongest hotspots, OD corridors and surrounding
-          land-use context.
+          The 24-hour pattern is grouped into six dayparts. Colours summarise the land-use and POI context around
+          routed demand, comparing weekday and weekend exposure on the same clock.
         </p>
       </div>
-      <div className="map-review-regime-matrix" role="table" aria-label="Function regime matrix">
-        <div className="map-review-regime-matrix-row map-review-regime-matrix-row--head" role="row">
+      <div className="map-review-functional-composition-legend" aria-label="Functional mix colour legend">
+        {functions.map((category) => (
+          <span key={category.id}><i style={{ backgroundColor: category.color }} />{category.shortLabel}</span>
+        ))}
+      </div>
+      <div className="map-review-functional-composition-grid" role="table" aria-label="Functional mix by time of day">
+        <div className="map-review-functional-composition-row map-review-functional-composition-row--head" role="row">
           <span role="columnheader">Time</span>
-          {regimeFunctionColumns.map((column) => (
-            <span key={column.id} role="columnheader">{column.short}</span>
-          ))}
+          <span role="columnheader">Weekday</span>
+          <span role="columnheader">Weekend</span>
         </div>
-        {functionRegimeRows.map((row) => {
-          const isActive = row.stepId === activeStepId;
+        {rows.map(({ daypart, weekday, weekend }) => {
+          const isActiveDaypart = daypart.hours.includes(activeHour);
           return (
             <div
-              key={row.stepId}
-              className={isActive ? "map-review-regime-matrix-row map-review-regime-matrix-row--active" : "map-review-regime-matrix-row"}
+              key={daypart.id}
+              className={isActiveDaypart ? "map-review-functional-composition-row map-review-functional-composition-row--active" : "map-review-functional-composition-row"}
               role="row"
             >
               <span role="rowheader">
-                <strong>{row.label}</strong>
-                <small>{row.regime}</small>
+                <strong>{daypart.label}</strong>
+                <small>{daypart.description}</small>
               </span>
-              {regimeFunctionColumns.map((column) => {
-                const level = row.values[column.id];
-                return (
-                  <span
-                    key={column.id}
-                    className={`map-review-regime-cell map-review-regime-cell--${column.id} map-review-regime-cell--level-${level}`}
-                    title={`${column.label}: ${level}/3`}
-                    role="cell"
-                    aria-label={`${row.label}, ${column.label}, level ${level} of 3`}
-                  >
-                    {Array.from({ length: 3 }, (_, index) => (
-                      <i
-                        key={index}
-                        className={index < level ? "map-review-regime-dot map-review-regime-dot--on" : "map-review-regime-dot"}
-                      />
-                    ))}
-                  </span>
-                );
-              })}
+              <span role="cell">
+                <FunctionalCompositionStrip mix={weekday} functions={functions} active={isActiveDaypart && activeProfileId === "weekdays"} />
+              </span>
+              <span role="cell">
+                <FunctionalCompositionStrip mix={weekend} functions={functions} active={isActiveDaypart && activeProfileId === "weekends"} />
+              </span>
             </div>
           );
         })}
       </div>
-      <p className="map-review-regime-matrix-note">
-        Dot levels are a compact reading aid rather than a statistical score. They show which urban functions are most
-        visible in each story stop without turning the article into a dashboard.
+      <p className="map-review-functional-composition-note">
+        {error ? `${error}. ` : null}
+        Hours are grouped into six dayparts to make the 24-hour pattern readable. Shares are contextual classifications
+        of routed demand, not declared trip purpose.
       </p>
     </article>
+  );
+}
+
+type RouteUseInequalityChartProps = {
+  dataset: RouteConcentrationDataset | null;
+  error: string | null;
+  activeStepId: string;
+};
+
+function formatPercentage(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
+
+function buildLorenzPath(points: Array<{ x: number; y: number }>, width: number, height: number) {
+  if (points.length === 0) return "";
+  return points
+    .map((point, index) => {
+      const x = point.x * width;
+      const y = height - point.y * height;
+      return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
+function RouteUseInequalityChart({ dataset, error, activeStepId }: RouteUseInequalityChartProps) {
+  const stops = dataset?.storyStops ?? [];
+  const maxTop10Share = Math.max(...stops.map((stop) => stop.top10Share), 0.01);
+  const weekdayStops = stops.filter((stop) => stop.profileId === "weekdays");
+  const weekendStops = stops.filter((stop) => stop.profileId === "weekends");
+  const activeStop = stops.find((stop) => stop.id === activeStepId) ?? null;
+  const lorenzWidth = 116;
+  const lorenzHeight = 82;
+  const lorenzPath = buildLorenzPath(activeStop?.lorenzCurve ?? [], lorenzWidth, lorenzHeight);
+  const diagonalPath = `M0 ${lorenzHeight} L${lorenzWidth} 0`;
+
+  const renderRows = (rows: RouteConcentrationStop[]) => rows.map((stop) => {
+    const active = stop.id === activeStepId;
+    const width = `${Math.max(5, (stop.top10Share / maxTop10Share) * 100)}%`;
+
+    return (
+      <div
+        key={stop.id}
+        className={active ? "map-review-route-concentration-row map-review-route-concentration-row--active" : "map-review-route-concentration-row"}
+      >
+        <span className="map-review-route-concentration-time">{String(stop.hour).padStart(2, "0")}</span>
+        <span className="map-review-route-concentration-track">
+          <i style={{ width }} />
+        </span>
+        <strong>{formatPercentage(stop.top10Share)}</strong>
+      </div>
+    );
+  });
+
+  return (
+    <aside className="map-review-story-figure map-review-route-inequality" aria-label="Route-use inequality analytics">
+      <div className="map-review-route-concentration-header">
+        <p className="map-review-route-concentration-kicker">Street-network allocation</p>
+        <h3>Route-use inequality</h3>
+      </div>
+      <p className="map-review-route-concentration-copy">
+        The Lorenz curve reads whether visible route-lens demand is spread across many OD corridors or pulled towards a
+        smaller set of dominant links.
+      </p>
+      <div className="map-review-route-inequality-grid">
+        <svg
+          className="map-review-lorenz"
+          viewBox={`0 0 ${lorenzWidth} ${lorenzHeight}`}
+          role="img"
+          aria-label="Lorenz curve for active route-use inequality"
+        >
+          <path className="map-review-lorenz-diagonal" d={diagonalPath} />
+          {lorenzPath ? <path className="map-review-lorenz-line" d={lorenzPath} /> : null}
+          <text x="0" y={lorenzHeight - 2}>even</text>
+          <text x={lorenzWidth} y="9" textAnchor="end">concentrated</text>
+        </svg>
+        <div className="map-review-route-concentration-table" aria-label="Top 10 corridor share">
+          <div className="map-review-route-concentration-head">
+            <span>Hour</span>
+            <span>Top 10 corridor share</span>
+            <span>Share</span>
+          </div>
+          <div className="map-review-route-concentration-group">
+            <b>Weekday</b>
+            {renderRows(weekdayStops)}
+          </div>
+          <div className="map-review-route-concentration-group">
+            <b>Weekend</b>
+            {renderRows(weekendStops)}
+          </div>
+        </div>
+      </div>
+      <p className="map-review-route-concentration-note">
+        {activeStop
+          ? `${activeStop.label}: Top 10 corridor share ${formatPercentage(activeStop.top10Share)}, Gini ${activeStop.gini.toFixed(2)}, effective corridors ${activeStop.effectiveCorridors.toLocaleString("en-GB", { maximumFractionDigits: 0 })}. `
+          : null}
+        {error ? `${error}. ` : null}
+        This is a route-lens metric, not a count of every possible trip pair.
+      </p>
+    </aside>
+  );
+}
+
+type TemporalCentralityShiftChartProps = {
+  dataset: TemporalCentralityDataset | null;
+  error: string | null;
+  activeStepId: string;
+};
+
+function TemporalCentralityShiftChart({ dataset, error, activeStepId }: TemporalCentralityShiftChartProps) {
+  const stops = dataset?.storyStops ?? [];
+  const anchors = dataset?.anchors ?? [];
+  const visibleStops = stops.filter((stop) => ["weekdays-08", "weekdays-17", "weekends-13", "weekends-23"].includes(stop.id));
+  const activeStop = stops.find((stop) => stop.id === activeStepId) ?? visibleStops[0] ?? null;
+  const activeTopAnchor = activeStop?.anchors.reduce((best, anchor) => (anchor.rank < best.rank ? anchor : best), activeStop.anchors[0]);
+
+  return (
+    <aside className="map-review-story-figure map-review-centrality-shift" aria-label="Temporal centrality shift">
+      <div className="map-review-route-concentration-header">
+        <p className="map-review-route-concentration-kicker">Temporal centrality</p>
+        <h3>Which places become central?</h3>
+      </div>
+      <div className="map-review-centrality-grid" aria-label="Ranked place centrality by selected story times">
+        <div className="map-review-centrality-head">
+          <span>Place</span>
+          {visibleStops.map((stop) => <span key={stop.id}>{String(stop.hour).padStart(2, "0")}</span>)}
+        </div>
+        {anchors.map((anchor) => (
+          <div key={anchor.id} className="map-review-centrality-row">
+            <span>
+              <i style={{ backgroundColor: anchor.color }} />
+              {anchor.label}
+            </span>
+            {visibleStops.map((stop) => {
+              const match = stop.anchors.find((item) => item.id === anchor.id);
+              return (
+                <b
+                  key={`${stop.id}-${anchor.id}`}
+                  className={stop.id === activeStepId ? "map-review-centrality-rank map-review-centrality-rank--active" : "map-review-centrality-rank"}
+                  style={{ opacity: match ? Math.max(0.28, 1 - (match.rank - 1) * 0.12) : 0.25 }}
+                >
+                  {match?.rank ?? "-"}
+                </b>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <p className="map-review-route-concentration-note">
+        {activeStop && activeTopAnchor
+          ? `${activeStop.label}: ${anchors.find((anchor) => anchor.id === activeTopAnchor.id)?.label ?? "the leading place"} ranks ${activeTopAnchor.rank}. `
+          : null}
+        {error ? `${error}. ` : null}
+        Ranks come from named origin and destination anchors in the visible OD route layer.
+      </p>
+    </aside>
   );
 }
 
@@ -1148,6 +1511,9 @@ export function MapReviewPage() {
   } = useRouteFlows(exploreProfileId, exploreHour, { prefetchAll: false });
   const odRouteLens = useOdRouteLens(exploreProfileId, exploreHour);
   const serviceContext = useServiceContext();
+  const functionalComposition = useFunctionalComposition();
+  const routeConcentration = useRouteConcentration();
+  const temporalCentrality = useTemporalCentrality();
 
   useEffect(() => {
     setSelectedStoryOdRouteId(null);
@@ -1424,7 +1790,7 @@ export function MapReviewPage() {
     <main className={captureMode ? "map-review-page map-review-page--capture" : "map-review-page"} data-map-review-root>
       <section className="map-review-hero" aria-labelledby="map-review-hero-title">
         <div className="map-review-hero-copy">
-          <p className="map-review-kicker">Santander Cycles · inner London street-use story</p>
+          <p className="map-review-kicker">Santander Cycles · inner London street-use analysis</p>
           <h1 id="map-review-hero-title">How London Borrows Its Bikes</h1>
           <p className="map-review-hero-subtitle">
             A scroll-driven map of how Santander Cycles shifts between commuting, parks, leisure and night-time
@@ -1434,7 +1800,7 @@ export function MapReviewPage() {
             We read bike-share demand as a temporal layer of urban accessibility: the same docking network is
             reweighted by commuting peaks, leisure rhythms, park use and the night-time economy.
           </p>
-          <div className="map-review-hero-cues" aria-label="Story functions">
+          <div className="map-review-hero-cues" aria-label="Mapped functions">
             <span><i className="map-review-key-dot map-review-key-dot--work" />Work access</span>
             <span><i className="map-review-key-dot map-review-key-dot--park" />Parks</span>
             <span><i className="map-review-key-dot map-review-key-dot--leisure" />Leisure</span>
@@ -1442,17 +1808,17 @@ export function MapReviewPage() {
           </div>
         </div>
         <div className="map-review-hero-team">Rong Zhao · Zhuohang Duan · Dailing Wu</div>
-        <div className="map-review-hero-scroll">Scroll to begin the guided story</div>
+        <div className="map-review-hero-scroll">Scroll to follow the day</div>
       </section>
       <div className="map-review-stage">
         <aside className="map-review-editorial">
           <div className="map-review-editorial-inner">
             <section className="map-review-intro">
-              <p className="map-review-kicker">Guided Story</p>
-              <h2>Follow the day through changing map states.</h2>
+              <p className="map-review-kicker">Through the day</p>
+              <h2>Bike-share use changes with the city clock.</h2>
               <p className="map-review-summary">
                 Each stop below is a data state: profile, hour, inferred route segments, hotspots, functional anchors
-                and area labels change together as the story moves through the day. The argument is temporal-functional
+                and area labels change together as the analysis moves through the day. The argument is temporal-functional
                 coupling: fixed docking infrastructure takes on different urban functions as land use, activity rhythms
                 and street-network allocation change by hour.
               </p>
@@ -1483,7 +1849,12 @@ export function MapReviewPage() {
                   />
                 </div>
               ) : null}
-              <FunctionRegimeMatrix activeStepId={activeStep.id} />
+              <FunctionalCompositionDaypartChart
+                dataset={functionalComposition.dataset}
+                error={functionalComposition.error}
+                activeProfileId={activeStep.profileId}
+                activeHour={activeStep.hour}
+              />
             </section>
 
             {reviewTracks.map((track) => (
@@ -1552,6 +1923,20 @@ export function MapReviewPage() {
                               profileSlices={routeProfilesById[step.profileId] ?? []}
                             />
                           ) : null}
+                          {step.id === "weekdays-17" ? (
+                            <RouteUseInequalityChart
+                              dataset={routeConcentration.dataset}
+                              error={routeConcentration.error}
+                              activeStepId={activeStep.id}
+                            />
+                          ) : null}
+                          {step.id === "weekends-13" ? (
+                            <TemporalCentralityShiftChart
+                              dataset={temporalCentrality.dataset}
+                              error={temporalCentrality.error}
+                              activeStepId={activeStep.id}
+                            />
+                          ) : null}
                         </section>
                       );
                     })}
@@ -1561,12 +1946,13 @@ export function MapReviewPage() {
             ))}
 
             <section className="map-review-conclusion">
-              <p className="map-review-kicker">Reading across both sequences</p>
+              <p className="map-review-kicker">What the maps show</p>
               <p>
-                The maps show a temporal reconfiguration of accessibility: a fixed docking-bike system alternates
-                between employment access, green-space circulation, visitor and leisure movement, and night-time
-                centrality. These are inferred street-use allocations rather than observed GPS traces, but they show
-                that time reorganises the functional geography of the network rather than merely its volume.
+                Together, the weekday and weekend sequences show that Santander Cycles is not one fixed urban service
+                repeated through the day. The same docking network becomes a rail-to-work access layer in the morning,
+                a mixed central circulation layer at midday, a park and visitor layer on weekends, and a smaller
+                night-time social layer after dark. The important shift is not the bicycles themselves, but the changing
+                relationship between time, land use and the streets that carry the trips.
               </p>
             </section>
           </div>
@@ -1612,7 +1998,7 @@ export function MapReviewPage() {
             onOdRouteClick={handleStoryOdRouteClick}
             onMapReady={handleMapReady}
           />
-          <div className="map-review-story-route-toggle" aria-label="Guided story route colour">
+          <div className="map-review-story-route-toggle" aria-label="Main map route colour">
             <span>Route colour</span>
             {(["unified", "intensity"] as RouteColorMode[]).map((mode) => (
               <button
@@ -1664,7 +2050,7 @@ export function MapReviewPage() {
           <p className="map-review-kicker">Free Exploration</p>
           <h2 id="map-review-explore-title">Explore the system yourself.</h2>
           <p>
-            After the guided story, use the map as a route lens. Choose a profile and hour, then click a full OD
+            After the main sequence, use the map as a route lens. Choose a profile and hour, then click a full OD
             corridor to inspect its predicted route, intensity and nearby service context.
           </p>
 
@@ -1850,8 +2236,8 @@ export function MapReviewPage() {
 
       <section className="map-review-appendix" aria-labelledby="map-review-method-title">
         <div className="map-review-appendix-intro">
-          <p className="map-review-kicker">About, Method and References</p>
-          <h2 id="map-review-method-title">How to read the maps.</h2>
+          <p className="map-review-kicker">About, Method and Data</p>
+          <h2 id="map-review-method-title">Why these maps matter.</h2>
           <p>
             The project treats Santander Cycles as a short-range access layer in central London. The question is not
             whether the docking system moves, but how the same infrastructure is reweighted by daily rhythms of work,
@@ -1862,7 +2248,7 @@ export function MapReviewPage() {
           <article>
             <h3>Urban science framing</h3>
             <p>
-              The story connects temporal urbanism, land-use and mobility interaction, and network allocation. OD
+              The analysis connects temporal urbanism, land-use and mobility interaction, and network allocation. OD
               trips are assigned to a street graph so hourly bike-share demand can be read as changing street-use
               geography rather than only as station counts.
             </p>
@@ -1896,7 +2282,7 @@ export function MapReviewPage() {
               Source data comes from <a href="https://cycling.data.tfl.gov.uk/" target="_blank" rel="noreferrer">TfL
               Santander Cycles usage statistics</a>, OpenStreetMap and Overpass context layers. Code and processing
               scripts are in the <a href="https://github.com/jameslemon2002/casa_viz_groupwork" target="_blank" rel="noreferrer">GitHub repository</a>.
-              The project methodology is summarised in the <a href={`${import.meta.env.BASE_URL}docs/Methodology_Summary_Group20.pdf`}>Methodology Summary PDF</a>.
+              The project methodology is summarised in the <a href="https://github.com/jameslemon2002/casa_viz_groupwork/blob/main/public/docs/Methodology_Summary_Group20.pdf" target="_blank" rel="noreferrer">methodology file on GitHub</a>.
             </p>
           </article>
           <article>

@@ -23,6 +23,8 @@
     "data:build:route-details": "node scripts/clean/build_route_details.mjs",
     "data:fetch:context": "node scripts/fetch/fetch_service_context.mjs",
     "data:filter:context": "node scripts/clean/filter_service_context_to_boroughs.mjs",
+    "data:build:functional-composition": "node scripts/clean/build_functional_composition_24h.mjs",
+    "data:build:route-concentration": "node scripts/clean/build_route_concentration_story.mjs",
     "data:optimize:route-flows": "node scripts/clean/optimize_route_flow_slices.mjs",
     "data:build:regimes": "node scripts/clean/build_regime_summary.mjs",
     "test:route-lens": "node --test scripts/lib/route_lens_utils.test.mjs scripts/lib/od_route_lens_utils.test.mjs scripts/lib/geo_filter_utils.test.mjs scripts/lib/map_review_page_source.test.mjs"

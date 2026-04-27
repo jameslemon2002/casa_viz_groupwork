@@ -1,0 +1,503 @@
+{
+  "version": 1,
+  "generatedAt": "2026-04-27T19:32:31.755Z",
+  "basis": "Concentration metrics are calculated from visible OD route-lens corridors. Top-10 share and Herfindahl index show whether routed demand is dominated by a small number of corridors or distributed across a wider street-use field.",
+  "storyStops": [
+    {
+      "id": "weekdays-08",
+      "profileId": "weekdays",
+      "hour": 8,
+      "label": "Weekday 08:00",
+      "slotLabel": "AM peak",
+      "routeCount": 553,
+      "totalAverageDailyTrips": 336.32,
+      "top10AverageDailyTrips": 20.24,
+      "top10Share": 0.0602,
+      "top25Share": 0.1232,
+      "herfindahl": 0.00225,
+      "gini": 0.2197,
+      "lorenzCurve": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0.0995,
+          "y": 0.0623
+        },
+        {
+          "x": 0.2007,
+          "y": 0.1293
+        },
+        {
+          "x": 0.3002,
+          "y": 0.1993
+        },
+        {
+          "x": 0.3996,
+          "y": 0.2736
+        },
+        {
+          "x": 0.5009,
+          "y": 0.355
+        },
+        {
+          "x": 0.6004,
+          "y": 0.4418
+        },
+        {
+          "x": 0.6998,
+          "y": 0.5376
+        },
+        {
+          "x": 0.7993,
+          "y": 0.6466
+        },
+        {
+          "x": 0.9005,
+          "y": 0.7807
+        },
+        {
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "effectiveCorridors": 444.6,
+      "dominantCorridor": "Waterloo Station 3, Waterloo to Queen Street 1, Bank"
+    },
+    {
+      "id": "weekdays-13",
+      "profileId": "weekdays",
+      "hour": 13,
+      "label": "Weekday 13:00",
+      "slotLabel": "Midday",
+      "routeCount": 491,
+      "totalAverageDailyTrips": 69.26,
+      "top10AverageDailyTrips": 4.75,
+      "top10Share": 0.0686,
+      "top25Share": 0.1464,
+      "herfindahl": 0.0027,
+      "gini": 0.2688,
+      "lorenzCurve": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0.0998,
+          "y": 0.0553
+        },
+        {
+          "x": 0.1996,
+          "y": 0.1119
+        },
+        {
+          "x": 0.2994,
+          "y": 0.1735
+        },
+        {
+          "x": 0.3992,
+          "y": 0.2421
+        },
+        {
+          "x": 0.501,
+          "y": 0.3178
+        },
+        {
+          "x": 0.6008,
+          "y": 0.403
+        },
+        {
+          "x": 0.7006,
+          "y": 0.5027
+        },
+        {
+          "x": 0.8004,
+          "y": 0.6174
+        },
+        {
+          "x": 0.9002,
+          "y": 0.7626
+        },
+        {
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "effectiveCorridors": 370.1,
+      "dominantCorridor": "Hyde Park Corner, Hyde Park to Albert Gate, Hyde Park"
+    },
+    {
+      "id": "weekdays-17",
+      "profileId": "weekdays",
+      "hour": 17,
+      "label": "Weekday 17:00",
+      "slotLabel": "PM peak",
+      "routeCount": 541,
+      "totalAverageDailyTrips": 238.53,
+      "top10AverageDailyTrips": 19.15,
+      "top10Share": 0.0803,
+      "top25Share": 0.1539,
+      "herfindahl": 0.00266,
+      "gini": 0.2707,
+      "lorenzCurve": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0.0998,
+          "y": 0.0552
+        },
+        {
+          "x": 0.1996,
+          "y": 0.1142
+        },
+        {
+          "x": 0.2994,
+          "y": 0.178
+        },
+        {
+          "x": 0.3993,
+          "y": 0.2472
+        },
+        {
+          "x": 0.5009,
+          "y": 0.3247
+        },
+        {
+          "x": 0.6007,
+          "y": 0.4087
+        },
+        {
+          "x": 0.7006,
+          "y": 0.5012
+        },
+        {
+          "x": 0.8004,
+          "y": 0.6077
+        },
+        {
+          "x": 0.9002,
+          "y": 0.745
+        },
+        {
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "effectiveCorridors": 376.4,
+      "dominantCorridor": "Newgate Street , St. Paul's to Waterloo Station 3, Waterloo"
+    },
+    {
+      "id": "weekdays-23",
+      "profileId": "weekdays",
+      "hour": 23,
+      "label": "Weekday 23:00",
+      "slotLabel": "Late",
+      "routeCount": 508,
+      "totalAverageDailyTrips": 41.18,
+      "top10AverageDailyTrips": 3.91,
+      "top10Share": 0.0949,
+      "top25Share": 0.1746,
+      "herfindahl": 0.00306,
+      "gini": 0.2948,
+      "lorenzCurve": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0.1004,
+          "y": 0.0495
+        },
+        {
+          "x": 0.2008,
+          "y": 0.1105
+        },
+        {
+          "x": 0.2992,
+          "y": 0.1712
+        },
+        {
+          "x": 0.3996,
+          "y": 0.2336
+        },
+        {
+          "x": 0.5,
+          "y": 0.3079
+        },
+        {
+          "x": 0.6004,
+          "y": 0.3924
+        },
+        {
+          "x": 0.7008,
+          "y": 0.4842
+        },
+        {
+          "x": 0.7992,
+          "y": 0.5889
+        },
+        {
+          "x": 0.8996,
+          "y": 0.7258
+        },
+        {
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "effectiveCorridors": 326.6,
+      "dominantCorridor": "Barons Court Station, West Kensington to Greyhound Road, Hammersmith"
+    },
+    {
+      "id": "weekends-08",
+      "profileId": "weekends",
+      "hour": 8,
+      "label": "Weekend 08:00",
+      "slotLabel": "Morning",
+      "routeCount": 436,
+      "totalAverageDailyTrips": 81.44,
+      "top10AverageDailyTrips": 6.77,
+      "top10Share": 0.0831,
+      "top25Share": 0.1542,
+      "herfindahl": 0.00303,
+      "gini": 0.2366,
+      "lorenzCurve": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0.1009,
+          "y": 0.063
+        },
+        {
+          "x": 0.1995,
+          "y": 0.127
+        },
+        {
+          "x": 0.3005,
+          "y": 0.1972
+        },
+        {
+          "x": 0.3991,
+          "y": 0.266
+        },
+        {
+          "x": 0.5,
+          "y": 0.3423
+        },
+        {
+          "x": 0.6009,
+          "y": 0.4268
+        },
+        {
+          "x": 0.6995,
+          "y": 0.5212
+        },
+        {
+          "x": 0.8005,
+          "y": 0.632
+        },
+        {
+          "x": 0.8991,
+          "y": 0.7698
+        },
+        {
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "effectiveCorridors": 329.9,
+      "dominantCorridor": "Blythe Road, Olympia to Sloane Avenue, Knightsbridge"
+    },
+    {
+      "id": "weekends-13",
+      "profileId": "weekends",
+      "hour": 13,
+      "label": "Weekend 13:00",
+      "slotLabel": "Afternoon",
+      "routeCount": 379,
+      "totalAverageDailyTrips": 84.68,
+      "top10AverageDailyTrips": 9.86,
+      "top10Share": 0.1164,
+      "top25Share": 0.2199,
+      "herfindahl": 0.00411,
+      "gini": 0.3034,
+      "lorenzCurve": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0.1003,
+          "y": 0.0551
+        },
+        {
+          "x": 0.2005,
+          "y": 0.1135
+        },
+        {
+          "x": 0.3008,
+          "y": 0.1726
+        },
+        {
+          "x": 0.4011,
+          "y": 0.2359
+        },
+        {
+          "x": 0.5013,
+          "y": 0.3057
+        },
+        {
+          "x": 0.5989,
+          "y": 0.3807
+        },
+        {
+          "x": 0.6992,
+          "y": 0.4689
+        },
+        {
+          "x": 0.7995,
+          "y": 0.5749
+        },
+        {
+          "x": 0.8997,
+          "y": 0.7142
+        },
+        {
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "effectiveCorridors": 243.3,
+      "dominantCorridor": "Hyde Park Corner, Hyde Park to Serpentine Car Park, Hyde Park"
+    },
+    {
+      "id": "weekends-17",
+      "profileId": "weekends",
+      "hour": 17,
+      "label": "Weekend 17:00",
+      "slotLabel": "Evening",
+      "routeCount": 354,
+      "totalAverageDailyTrips": 73.56,
+      "top10AverageDailyTrips": 7.92,
+      "top10Share": 0.1077,
+      "top25Share": 0.2085,
+      "herfindahl": 0.00407,
+      "gini": 0.2777,
+      "lorenzCurve": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0.0989,
+          "y": 0.0571
+        },
+        {
+          "x": 0.2006,
+          "y": 0.1173
+        },
+        {
+          "x": 0.2994,
+          "y": 0.1792
+        },
+        {
+          "x": 0.4011,
+          "y": 0.2458
+        },
+        {
+          "x": 0.5,
+          "y": 0.3176
+        },
+        {
+          "x": 0.5989,
+          "y": 0.3959
+        },
+        {
+          "x": 0.7006,
+          "y": 0.4901
+        },
+        {
+          "x": 0.7994,
+          "y": 0.6005
+        },
+        {
+          "x": 0.9011,
+          "y": 0.7424
+        },
+        {
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "effectiveCorridors": 245.6,
+      "dominantCorridor": "Albert Gate, Hyde Park to Hyde Park Corner, Hyde Park"
+    },
+    {
+      "id": "weekends-23",
+      "profileId": "weekends",
+      "hour": 23,
+      "label": "Weekend 23:00",
+      "slotLabel": "Late",
+      "routeCount": 418,
+      "totalAverageDailyTrips": 43.62,
+      "top10AverageDailyTrips": 4.06,
+      "top10Share": 0.0931,
+      "top25Share": 0.1717,
+      "herfindahl": 0.00326,
+      "gini": 0.2503,
+      "lorenzCurve": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0.1005,
+          "y": 0.0578
+        },
+        {
+          "x": 0.201,
+          "y": 0.1217
+        },
+        {
+          "x": 0.299,
+          "y": 0.1875
+        },
+        {
+          "x": 0.3995,
+          "y": 0.2581
+        },
+        {
+          "x": 0.5,
+          "y": 0.3352
+        },
+        {
+          "x": 0.6005,
+          "y": 0.4211
+        },
+        {
+          "x": 0.701,
+          "y": 0.517
+        },
+        {
+          "x": 0.799,
+          "y": 0.6231
+        },
+        {
+          "x": 0.8995,
+          "y": 0.7568
+        },
+        {
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "effectiveCorridors": 306.5,
+      "dominantCorridor": "Curlew Street, Shad Thames to Bermondsey Station, Bermondsey"
+    }
+  ]
+}
