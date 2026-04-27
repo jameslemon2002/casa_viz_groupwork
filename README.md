@@ -1,6 +1,6 @@
 # How London Borrows Its Bikes
 
-Carbon-Brief-inspired scrollytelling website for London's Santander Cycles usage rhythms.
+Scrollytelling website and route-lens exploration for London's Santander Cycles usage rhythms.
 
 Live site:
 
@@ -12,9 +12,9 @@ Repository:
 
 ## Project Focus
 
-The project asks how the same inner London docking-bike network is used differently across a typical day. It does not treat the bikes or stations as changing infrastructure. Instead, it visualises changing usage regimes: weekday work access, midday park and cultural circulation, weekend leisure use, and late-evening central activity.
+The project asks how the same inner London docking-bike network is used differently across a typical day. It reads bike-share demand as a temporal layer of urban accessibility: fixed docking infrastructure is reweighted by commuting peaks, leisure rhythms, park use and the night-time economy.
 
-The main deliverable is a single guided story page with a full-screen hero, scroll-driven text, a fixed map stage, inline evidence cards, and a final free-exploration section.
+The main deliverable is a single guided story page with a full-screen hero, scroll-driven text, a fixed map stage, inline evidence cards, a function-regime matrix, an About/Method/References appendix and a final free-exploration route lens.
 
 ## Current Version
 
@@ -33,13 +33,15 @@ There is no separate PR workflow required for the coursework submission. The pub
 - Functional anchors and area labels for work, parks, leisure, and night-city contexts.
 - Compact evidence charts for selected story moments.
 - A free-exploration panel for profile, hour, and layer switching.
-- A Method and Credits appendix for data assumptions and modelling limits.
+- An About, Method and References appendix for data assumptions, modelling limits, attribution and literature links.
 
 ## What The Route Layer Means
 
-The route layer is an inferred street-use allocation, not GPS traces. OD pairs are assigned to a simplified service-area street graph with a seeded stochastic multi-route model and distance-decay weighting.
+The route layer is an inferred street-use allocation, not GPS traces. OD pairs are assigned to an OSM-derived service-area street graph with a seeded stochastic multi-route model and distance-decay weighting.
 
 Route intensity uses one global visual scale across all time slices. This avoids late-night or low-demand hours appearing artificially strong simply because their own local maximum is small.
+
+The 2025 processing pipeline retains 8,846,143 valid TfL Santander Cycles trips across 797 matched stations. The route assignment uses 36,960 OD candidate pairs on a street graph with 337,680 nodes and 359,397 edges. Model settings are four alternative routes, detour limit 1.55, distance-decay alpha 3.2, stochastic jitter 0.18 and seed 2025.
 
 ## Frontend Data
 
@@ -56,6 +58,10 @@ The live site uses prebuilt assets in `public/data/`, including:
 - `london-boroughs.geojson`
 - `london-outline.geojson`
 - `service_greenspaces.geojson`
+- `service_context_pois.geojson`
+- `service_landuse_context.geojson`
+- `od_route_lens/*.json`
+- `route_details/*.json`
 
 The route-flow slices are stored in compact format to keep GitHub Pages loading practical while retaining all routed edges for display.
 
@@ -109,6 +115,18 @@ Deployment source:
 
 The workflow builds with Vite and publishes the generated static site to GitHub Pages.
 
+## Methodology And References
+
+The project methodology is summarised in the website About, Method and References appendix and in `public/docs/Methodology_Summary_Group20.pdf`.
+
+Core references used in the framing:
+
+- O'Brien, Cheshire and Batty (2014), bicycle sharing data as evidence for sustainable transport systems: <https://doi.org/10.1016/j.jtrangeo.2013.06.007>
+- Fishman (2016), bike-share literature review: <https://doi.org/10.1080/01441647.2015.1033036>
+- Faghih-Imani et al. (2014), bike-share flows and land-use / urban form: <https://doi.org/10.1016/j.jtrangeo.2014.01.013>
+- TfL Santander Cycles usage statistics: <https://cycling.data.tfl.gov.uk/>
+- OpenStreetMap and Overpass API context layers.
+
 ## Repository Scope
 
-This repository is aligned around the final Carbon-style map story. `main` is the canonical submitted version and GitHub Pages deploys from that branch only.
+This repository is aligned around the final guided map story. `main` is the canonical submitted version and GitHub Pages deploys from that branch only.

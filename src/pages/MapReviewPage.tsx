@@ -47,6 +47,15 @@ type ReviewTrackDefinition = {
   steps: ReviewStepDefinition[];
 };
 
+type RegimeFunctionId = "transit-work" | "park-leisure" | "culture-retail" | "night-social" | "civic-health";
+
+type FunctionRegimeRow = {
+  stepId: string;
+  label: string;
+  regime: string;
+  values: Record<RegimeFunctionId, 0 | 1 | 2 | 3>;
+};
+
 const exploreLayerOptions: Array<{ id: ExploreLayerId; label: string }> = [
   { id: "routes", label: "Routes" },
   { id: "hotspots", label: "Hotspots" },
@@ -89,13 +98,72 @@ const landuseLabels: Record<LanduseCategory, string> = {
 const poiLegendCategories: PoiCategory[] = ["transit", "office-work", "food-night", "retail", "culture-tourism", "sport-leisure"];
 const landuseLegendCategories: LanduseCategory[] = ["commercial", "retail", "residential", "education-civic", "leisure-park", "industrial"];
 
+const regimeFunctionColumns: Array<{ id: RegimeFunctionId; label: string; short: string }> = [
+  { id: "transit-work", label: "Transit / work", short: "Work" },
+  { id: "park-leisure", label: "Park / leisure", short: "Park" },
+  { id: "culture-retail", label: "Culture / retail", short: "Visit" },
+  { id: "night-social", label: "Night / social", short: "Night" },
+  { id: "civic-health", label: "Civic / health", short: "Civic" },
+];
+
+const functionRegimeRows: FunctionRegimeRow[] = [
+  {
+    stepId: "weekdays-08",
+    label: "Weekday 08",
+    regime: "Rail-employment access",
+    values: { "transit-work": 3, "park-leisure": 0, "culture-retail": 1, "night-social": 0, "civic-health": 0 },
+  },
+  {
+    stepId: "weekdays-13",
+    label: "Weekday 13",
+    regime: "Mixed central short trips",
+    values: { "transit-work": 1, "park-leisure": 2, "culture-retail": 2, "night-social": 0, "civic-health": 1 },
+  },
+  {
+    stepId: "weekdays-17",
+    label: "Weekday 17",
+    regime: "Employment release",
+    values: { "transit-work": 3, "park-leisure": 0, "culture-retail": 1, "night-social": 0, "civic-health": 0 },
+  },
+  {
+    stepId: "weekdays-23",
+    label: "Weekday 23",
+    regime: "Late-evening fragments",
+    values: { "transit-work": 1, "park-leisure": 0, "culture-retail": 1, "night-social": 3, "civic-health": 2 },
+  },
+  {
+    stepId: "weekends-08",
+    label: "Weekend 08",
+    regime: "Early leisure field",
+    values: { "transit-work": 0, "park-leisure": 2, "culture-retail": 2, "night-social": 0, "civic-health": 0 },
+  },
+  {
+    stepId: "weekends-13",
+    label: "Weekend 13",
+    regime: "Park accessibility",
+    values: { "transit-work": 0, "park-leisure": 3, "culture-retail": 2, "night-social": 0, "civic-health": 0 },
+  },
+  {
+    stepId: "weekends-17",
+    label: "Weekend 17",
+    regime: "Lingering leisure",
+    values: { "transit-work": 0, "park-leisure": 3, "culture-retail": 2, "night-social": 1, "civic-health": 0 },
+  },
+  {
+    stepId: "weekends-23",
+    label: "Weekend 23",
+    regime: "Night-time social geography",
+    values: { "transit-work": 1, "park-leisure": 0, "culture-retail": 1, "night-social": 3, "civic-health": 1 },
+  },
+];
+
 const reviewTracks: ReviewTrackDefinition[] = [
   {
     id: "weekday",
     label: "Weekday",
     eyebrow: "Weekday guided story",
     intro:
-      "Across weekdays, the same docking network is pulled sharply into the work city in the morning, relaxes into a more mixed central geography at midday, reforms as an outward evening release, and then thins into a smaller late-night pattern.",
+      "Across weekdays, the same docking network moves through a sequence of mobility regimes: rail-employment access in the morning, mixed central short trips at midday, employment release in the evening, and a thinner late-evening service geography.",
     steps: [
       {
         id: "weekdays-08",
@@ -108,7 +176,7 @@ const reviewTracks: ReviewTrackDefinition[] = [
         title: "Inbound work access",
         colorScheme: "cool",
         body: ({ averageDailyTrips, topHotspots }) =>
-          `In a typical weekday morning at 08:00, the network reaches ${formatPrecise(averageDailyTrips)} trips per profile day and the routed street texture converges most clearly on ${joinNatural(topHotspots.slice(0, 3))}. This is the hour at which the system reads most strongly as a connector between rail terminals, the City and the inner employment core.`,
+          `In a typical weekday morning at 08:00, the network reaches ${formatPrecise(averageDailyTrips)} trips per profile day and the routed street texture converges most clearly on ${joinNatural(topHotspots.slice(0, 3))}. In urban science terms, this is an access regime: the same docking infrastructure is being reweighted towards rail terminals, the City and the inner employment core.`,
         note: ({ topFlows }) =>
           `Leading retained pairs include ${joinNatural(topFlows.slice(0, 3))}.`,
       },
@@ -123,7 +191,7 @@ const reviewTracks: ReviewTrackDefinition[] = [
         title: "A more mixed central geography",
         colorScheme: "warm",
         body: ({ averageDailyTrips, topHotspots }) =>
-          `By 13:00 on weekdays, activity falls to ${formatPrecise(averageDailyTrips)} trips per profile day and the work-centred pattern loosens. ${joinNatural(topHotspots.slice(0, 4))} rise into the hotspot set together, suggesting a central geography that mixes office access with short lunchtime and park-adjacent circulation rather than simply extending the morning commute.`,
+          `By 13:00 on weekdays, activity falls to ${formatPrecise(averageDailyTrips)} trips per profile day and the work-centred pattern loosens. ${joinNatural(topHotspots.slice(0, 4))} rise into the hotspot set together, showing how land-use context changes the network's function: office access, short lunchtime circulation and park-adjacent trips overlap in the same central street system.`,
         note: ({ topFlows }) =>
           `The strongest retained movements shift towards shorter central links, including ${joinNatural(topFlows.slice(0, 3))}.`,
       },
@@ -153,7 +221,7 @@ const reviewTracks: ReviewTrackDefinition[] = [
         title: "A thinner late-night geography",
         colorScheme: "purple",
         body: ({ averageDailyTrips, topHotspots }) =>
-          `By 23:00 on weekdays, demand drops to ${formatPrecise(averageDailyTrips)} trips per weekday and the map recentres on ${joinNatural(topHotspots.slice(0, 4))}. Classic commuter anchors no longer dominate. What remains is a much thinner and more fragmented geography of hospitals, riverfront destinations and mixed late-evening districts.`,
+          `By 23:00 on weekdays, demand drops to ${formatPrecise(averageDailyTrips)} trips per weekday and the map recentres on ${joinNatural(topHotspots.slice(0, 4))}. Classic commuter anchors no longer dominate. What remains is a thinner temporal layer of essential institutions, riverfront destinations and mixed late-evening districts.`,
         note: ({ topFlows }) =>
           `The retained pairs are smaller and more scattered, with ${joinNatural(topFlows.slice(0, 3))} among the strongest links.`,
       },
@@ -164,7 +232,7 @@ const reviewTracks: ReviewTrackDefinition[] = [
     label: "Weekend",
     eyebrow: "Weekend guided story",
     intro:
-      "Weekends follow a different time structure. The morning starts thinner and more dispersed, afternoon and early evening consolidate around parks and leisure destinations, and late night recentres on a looser social geography rather than the weekday employment core.",
+      "Weekends follow a different time structure. The morning starts thinner and more dispersed, afternoon and early evening consolidate into a park and leisure accessibility regime, and late night recentres on a social geography rather than the weekday employment core.",
     steps: [
       {
         id: "weekends-08",
@@ -192,7 +260,7 @@ const reviewTracks: ReviewTrackDefinition[] = [
         title: "Parks and leisure dominate",
         colorScheme: "warm",
         body: ({ averageDailyTrips, topHotspots }) =>
-          `By 13:00 on weekends, activity reaches ${formatPrecise(averageDailyTrips)} trips per day and the map locks decisively onto ${joinNatural(topHotspots.slice(0, 4))}. This is not simply weaker weekday demand. It is a different service function, organised around parks, open space and leisure-oriented central movement.`,
+          `By 13:00 on weekends, activity reaches ${formatPrecise(averageDailyTrips)} trips per day and the map locks decisively onto ${joinNatural(topHotspots.slice(0, 4))}. This is not simply weaker weekday demand. It is a different accessibility regime, organised around parks, open space and leisure-oriented central movement.`,
         note: ({ topFlows }) =>
           `The clearest retained pairs are short internal park links such as ${joinNatural(topFlows.slice(0, 3))}.`,
       },
@@ -207,7 +275,7 @@ const reviewTracks: ReviewTrackDefinition[] = [
         title: "The leisure regime persists",
         colorScheme: "warm",
         body: ({ averageDailyTrips, topHotspots }) =>
-          `By 17:00 on weekends, use remains high at ${formatPrecise(averageDailyTrips)} trips per day and ${joinNatural(topHotspots.slice(0, 5))} continue to dominate the field. The afternoon leisure regime therefore persists into early evening rather than collapsing once lunch is over.`,
+          `By 17:00 on weekends, use remains high at ${formatPrecise(averageDailyTrips)} trips per day and ${joinNatural(topHotspots.slice(0, 5))} continue to dominate the field. The afternoon leisure regime therefore persists into early evening, showing a temporal extension of green-space and visitor accessibility rather than a short lunchtime spike.`,
         note: ({ topFlows }) =>
           `The strongest retained links still circle the western park system, including ${joinNatural(topFlows.slice(0, 3))}.`,
       },
@@ -876,6 +944,73 @@ function ExploreMapLegend({ layers, colorMode }: ExploreMapLegendProps) {
   );
 }
 
+type FunctionRegimeMatrixProps = {
+  activeStepId: string;
+};
+
+function FunctionRegimeMatrix({ activeStepId }: FunctionRegimeMatrixProps) {
+  return (
+    <article className="map-review-regime-matrix-card" aria-label="Function regime matrix">
+      <div className="map-review-regime-matrix-header">
+        <div>
+          <p className="map-review-regime-matrix-kicker">Urban Science Lens</p>
+          <h3>Function regime matrix</h3>
+        </div>
+        <p>
+          Each time stop is interpreted as a mobility regime, linking top hotspots and OD corridors to OSM land-use
+          and POI context.
+        </p>
+      </div>
+      <div className="map-review-regime-matrix" role="table" aria-label="Function regime matrix">
+        <div className="map-review-regime-matrix-row map-review-regime-matrix-row--head" role="row">
+          <span role="columnheader">Time</span>
+          {regimeFunctionColumns.map((column) => (
+            <span key={column.id} role="columnheader">{column.short}</span>
+          ))}
+        </div>
+        {functionRegimeRows.map((row) => {
+          const isActive = row.stepId === activeStepId;
+          return (
+            <div
+              key={row.stepId}
+              className={isActive ? "map-review-regime-matrix-row map-review-regime-matrix-row--active" : "map-review-regime-matrix-row"}
+              role="row"
+            >
+              <span role="rowheader">
+                <strong>{row.label}</strong>
+                <small>{row.regime}</small>
+              </span>
+              {regimeFunctionColumns.map((column) => {
+                const level = row.values[column.id];
+                return (
+                  <span
+                    key={column.id}
+                    className={`map-review-regime-cell map-review-regime-cell--${column.id} map-review-regime-cell--level-${level}`}
+                    title={`${column.label}: ${level}/3`}
+                    role="cell"
+                    aria-label={`${row.label}, ${column.label}, level ${level} of 3`}
+                  >
+                    {Array.from({ length: 3 }, (_, index) => (
+                      <i
+                        key={index}
+                        className={index < level ? "map-review-regime-dot map-review-regime-dot--on" : "map-review-regime-dot"}
+                      />
+                    ))}
+                  </span>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+      <p className="map-review-regime-matrix-note">
+        Matrix levels summarise the dominant function of each story stop from top hotspots, retained OD corridors and
+        OSM context. They are interpretive categories, not demographic or equity measures.
+      </p>
+    </article>
+  );
+}
+
 function buildMiniRhythmGeometry(slices: RouteFlowSlice[], activeHour: number) {
   const width = 220;
   const height = 74;
@@ -1296,8 +1431,8 @@ export function MapReviewPage() {
             movement across inner London.
           </p>
           <p className="map-review-hero-deck">
-            The docking stations stay fixed. What changes is the city they serve: morning rail access, midday park
-            circulation, evening release from work, and late-night social movement.
+            We read bike-share demand as a temporal layer of urban accessibility: the same docking network is
+            reweighted by commuting peaks, leisure rhythms, park use and the night-time economy.
           </p>
           <div className="map-review-hero-cues" aria-label="Story functions">
             <span><i className="map-review-key-dot map-review-key-dot--work" />Work access</span>
@@ -1317,7 +1452,9 @@ export function MapReviewPage() {
               <h2>Follow the day through changing map states.</h2>
               <p className="map-review-summary">
                 Each stop below is a data state: profile, hour, inferred route segments, hotspots, functional anchors
-                and area labels change together as the story moves through the day.
+                and area labels change together as the story moves through the day. The argument is temporal-functional
+                coupling: fixed docking infrastructure takes on different urban functions as land use, activity rhythms
+                and street-network allocation change by hour.
               </p>
               <div className="map-review-function-key" aria-label="Function colour key">
                 <span><i className="map-review-key-dot map-review-key-dot--work" />Work</span>
@@ -1346,6 +1483,7 @@ export function MapReviewPage() {
                   />
                 </div>
               ) : null}
+              <FunctionRegimeMatrix activeStepId={activeStep.id} />
             </section>
 
             {reviewTracks.map((track) => (
@@ -1425,10 +1563,10 @@ export function MapReviewPage() {
             <section className="map-review-conclusion">
               <p className="map-review-kicker">Reading across both sequences</p>
               <p>
-                Taken together, the two day types show that temporal change in bike-share use is not only a question
-                of how much travel occurs, but of what kind of city the system is serving at a given moment. The maps
-                shown here are inferred street-use allocations rather than observed GPS traces, but they are sufficient
-                to show that time reorganises the functional geography of the network rather than merely its volume.
+                The maps show a temporal reconfiguration of accessibility: a fixed docking-bike system alternates
+                between employment access, green-space circulation, visitor and leisure movement, and night-time
+                centrality. These are inferred street-use allocations rather than observed GPS traces, but they show
+                that time reorganises the functional geography of the network rather than merely its volume.
               </p>
             </section>
           </div>
@@ -1711,29 +1849,73 @@ export function MapReviewPage() {
       </section>
 
       <section className="map-review-appendix" aria-labelledby="map-review-method-title">
-        <div>
-          <p className="map-review-kicker">Method and Credits</p>
-          <h2 id="map-review-method-title">Method, data and credits.</h2>
+        <div className="map-review-appendix-intro">
+          <p className="map-review-kicker">About, Method and References</p>
+          <h2 id="map-review-method-title">How to read the maps.</h2>
+          <p>
+            The project treats Santander Cycles as a short-range access layer in central London. The question is not
+            whether the docking system moves, but how the same infrastructure is reweighted by daily rhythms of work,
+            parks, visitor activity and the night-time economy.
+          </p>
         </div>
         <div className="map-review-appendix-grid">
           <article>
-            <h3>Data</h3>
+            <h3>Urban science framing</h3>
             <p>
-              The project uses TfL Santander Cycles trip records, BikePoint station metadata, London borough
-              boundaries, an OSM-derived service-area street network and OSM POI / land-use context.
+              The story connects temporal urbanism, land-use and mobility interaction, and network allocation. OD
+              trips are assigned to a street graph so hourly bike-share demand can be read as changing street-use
+              geography rather than only as station counts.
             </p>
           </article>
           <article>
-            <h3>Method</h3>
+            <h3>Data and cleaning</h3>
             <p>
-              Route layers are inferred street-use allocations from OD pairs, station snapping and stochastic
-              distance-decay assignment. Segment details expose the strongest assigned contributors for clickable
-              focus routes.
+              We use 2025 TfL Santander Cycles usage statistics, retaining 8,846,143 valid trips across 797 matched
+              stations. Trips with unmatched endpoints, non-positive duration or duration above four hours are excluded.
             </p>
           </article>
           <article>
-            <h3>Team</h3>
-            <p>Rong Zhao · Zhuohang Duan · Dailing Wu</p>
+            <h3>Route allocation</h3>
+            <p>
+              The route layer uses an OSM street graph with 337,680 nodes and 359,397 edges. We route 36,960 OD
+              candidate pairs using four alternatives, detour limit 1.55, distance-decay alpha 3.2, jitter 0.18 and
+              seed 2025.
+            </p>
+          </article>
+          <article>
+            <h3>Interpretation limits</h3>
+            <p>
+              Routes are modelled allocations, not GPS traces. The maps do not claim precise route choice, individual
+              behaviour, dockless cycling, weather effects, event effects or equity impacts. Equity analysis would
+              require additional demographic and accessibility data.
+            </p>
+          </article>
+          <article>
+            <h3>Open data and code</h3>
+            <p>
+              Source data comes from <a href="https://cycling.data.tfl.gov.uk/" target="_blank" rel="noreferrer">TfL
+              Santander Cycles usage statistics</a>, OpenStreetMap and Overpass context layers. Code and processing
+              scripts are in the <a href="https://github.com/jameslemon2002/casa_viz_groupwork" target="_blank" rel="noreferrer">GitHub repository</a>.
+              The project methodology is summarised in the <a href={`${import.meta.env.BASE_URL}docs/Methodology_Summary_Group20.pdf`}>Methodology Summary PDF</a>.
+            </p>
+          </article>
+          <article>
+            <h3>References</h3>
+            <ul>
+              <li><a href="https://doi.org/10.1016/j.jtrangeo.2013.06.007" target="_blank" rel="noreferrer">O'Brien, Cheshire and Batty, 2014</a></li>
+              <li><a href="https://doi.org/10.1080/01441647.2015.1033036" target="_blank" rel="noreferrer">Fishman, 2016</a></li>
+              <li><a href="https://doi.org/10.1016/j.jtrangeo.2014.01.013" target="_blank" rel="noreferrer">Faghih-Imani et al., 2014</a></li>
+              <li>OpenStreetMap contributors; TfL Open Data.</li>
+            </ul>
+          </article>
+          <article className="map-review-appendix--wide">
+            <h3>Team and AI use</h3>
+            <p>
+              Rong Zhao · Zhuohang Duan · Dailing Wu. The group carried out the main research decisions, data analysis,
+              code construction, visual implementation and final integration. AI tools were used at a moderate level
+              for debugging, wording checks, visual comparison, and build or layout troubleshooting; all material was
+              reviewed by the group before submission.
+            </p>
           </article>
         </div>
       </section>
