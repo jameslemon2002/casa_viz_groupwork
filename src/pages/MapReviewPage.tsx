@@ -914,11 +914,11 @@ type StoryMapLegendProps = {
 function StoryMapLegend({ colorMode }: StoryMapLegendProps) {
   return (
     <aside className="map-review-story-legend" aria-label="Main map legend">
-      <div className="map-review-explore-legend-section">
-        <strong>Map layers</strong>
-        <span><i className="map-review-legend-line map-review-legend-line--corridor" />clickable OD corridor</span>
+      <div className="map-review-story-legend-row">
+        <strong>Layers</strong>
+        <span><i className="map-review-legend-line map-review-legend-line--corridor" />OD corridor</span>
         {colorMode === "intensity" ? <span><i className="map-review-legend-ramp" />low to high route intensity</span> : null}
-        <span><i className="map-review-legend-swatch map-review-legend-landuse--commercial" />OSM land-use context</span>
+        <span><i className="map-review-legend-swatch map-review-legend-landuse--commercial" />land-use context</span>
       </div>
     </aside>
   );

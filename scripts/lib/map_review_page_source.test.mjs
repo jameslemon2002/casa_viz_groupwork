@@ -148,19 +148,29 @@ test("MapReviewPage formats land-use polygon area as square metres", () => {
 
 test("MapReviewPage keeps selected detail cards above map legends", () => {
   const floatingCardRule = cssSource.match(/\.map-review-route-lens--floating\s*\{[\s\S]*?\}/)?.[0] ?? "";
+  const storyRouteToggleRule = cssSource.match(/\.map-review-story-route-toggle\s*\{[\s\S]*?\}/)?.[0] ?? "";
   const storyLegendRule = cssSource.match(/\.map-review-story-legend\s*\{[\s\S]*?\}/)?.[0] ?? "";
   const exploreLegendRule = cssSource.match(/\.map-review-explore-legend\s*\{[\s\S]*?\}/)?.[0] ?? "";
+  const maplibreAttributionRule = cssSource.match(/\.gl-canvas \.maplibregl-ctrl-bottom-right\s*\{[\s\S]*?\}/)?.[0] ?? "";
 
   assert.match(source, /\{!\(selectedOdRoute \|\| selectedContextFeature\) \? \(\s*<ExploreMapLegend/);
   assert.match(floatingCardRule, /z-index:\s*20;/);
   assert.match(cssSource, /\.map-review-route-lens--story\s*\{[\s\S]*?z-index:\s*24;/);
+  assert.match(storyRouteToggleRule, /left:\s*1rem;/);
+  assert.match(storyRouteToggleRule, /right:\s*auto;/);
+  assert.match(storyRouteToggleRule, /bottom:\s*1rem;/);
   assert.match(storyLegendRule, /z-index:\s*6;/);
-  assert.match(storyLegendRule, /left:\s*1rem;/);
+  assert.match(storyLegendRule, /top:\s*0\.95rem;/);
+  assert.match(storyLegendRule, /left:\s*50%;/);
   assert.match(storyLegendRule, /right:\s*auto;/);
+  assert.match(storyLegendRule, /max-width:\s*min\(34rem,\s*calc\(100%\s*-\s*2rem\)\);/);
   assert.match(exploreLegendRule, /z-index:\s*6;/);
   assert.match(exploreLegendRule, /left:\s*0\.75rem;/);
   assert.match(exploreLegendRule, /right:\s*auto;/);
   assert.match(exploreLegendRule, /bottom:\s*0\.75rem;/);
+  assert.match(maplibreAttributionRule, /right:\s*0\.75rem\s*!important;/);
+  assert.match(maplibreAttributionRule, /left:\s*auto\s*!important;/);
+  assert.match(maplibreAttributionRule, /bottom:\s*0\.75rem\s*!important;/);
 });
 
 test("MapReviewPage points methodology readers to the GitHub methodology file", () => {
