@@ -82,6 +82,17 @@ Open:
 http://127.0.0.1:5174/
 ```
 
+## Main Libraries Used
+
+The project uses these main web and spatial visualisation libraries:
+
+- React: <https://react.dev/>
+- Vite: <https://vite.dev/>
+- TypeScript: <https://www.typescriptlang.org/>
+- MapLibre GL JS: <https://maplibre.org/maplibre-gl-js/docs/>
+- deck.gl: <https://deck.gl/>
+- csv-parse: <https://csv.js.org/parse/>
+
 ## Build
 
 ```bash
@@ -108,6 +119,8 @@ npm run data:build:functional-composition
 npm run data:build:route-concentration
 npm run build
 ```
+
+The submitted output zip includes the checked-in processing scripts, public web data and processed analysis data used by the final site. Empty raw/interim placeholder folders are not included in the submission zip; source data links and rebuild commands are documented above.
 
 ## Deployment
 
